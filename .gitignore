@@ -1,0 +1,10 @@
+# dependencies and build artifacts
+/node_modules
+/.next
+/out
+
+# local environment files
+.env*
+
+# TypeScript build cache
+*.tsbuildinfo
