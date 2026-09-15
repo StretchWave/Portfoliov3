@@ -9,8 +9,8 @@ export function ProjectInteractiveCta({ project }: { project: PortfolioProject }
     <section className="project-interactive-cta" aria-labelledby="interactive-experience-heading">
       <div>
         <p className="eyebrow">Interactive experience</p>
-        <h2 id="interactive-experience-heading">See {project.name} in the prototype hub.</h2>
-        <p>The optional 3D hub includes a data-driven exhibit for this project. The conventional case study remains the complete non-WebGL path.</p>
+        <h2 id="interactive-experience-heading">See {project.name} in the reference hub.</h2>
+        <p>The optional 3D exhibition hall includes a data-driven exhibit for this project. The conventional case study remains the complete non-WebGL path.</p>
       </div>
       <Link className="button button--primary" href="/interactive">Open interactive hub <span aria-hidden="true">→</span></Link>
     </section>

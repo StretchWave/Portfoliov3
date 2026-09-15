@@ -6,8 +6,9 @@ import { useEffect } from "react";
 import { useInteraction } from "./interaction-provider";
 
 /**
- * The prototype uses proximity because it is predictable with a drag-to-look
- * camera. A future raycast detector can feed the same provider API.
+ * The reference environment uses proximity because it is predictable with a
+ * drag-to-look camera. A future raycast detector can feed the same provider
+ * API without changing exhibits or the panel.
  */
 export function InteractionDetector() {
   const { requestInteraction, updateFocusFromPosition } = useInteraction();

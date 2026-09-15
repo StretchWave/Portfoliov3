@@ -174,3 +174,57 @@ kbd { display: inline-flex; min-width: 23px; justify-content: center; margin-lef
   .project-panel { top: 62px; right: 12px; bottom: 12px; width: calc(100% - 24px); padding: 25px; }
   .interaction-hud { bottom: 12px; }
 }
+
+/* Portfolio content additions: directions, skills, filters, priority badges. */
+.direction-section { padding: 92px 0 30px; border-top: 1px solid var(--line); }
+.direction-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 35px; }
+.direction-card { padding: 26px; border: 1px solid var(--line); background: linear-gradient(135deg, rgba(28, 58, 91, .35), rgba(12, 27, 46, .4)); }
+.direction-card h3 { margin: 0 0 10px; color: #dff2ff; font-size: 1.05rem; letter-spacing: -.015em; }
+.direction-card p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.55; }
+.skills-strip { display: flex; align-items: end; justify-content: space-between; gap: 28px; margin-top: 90px; padding: 34px; border: 1px solid rgba(104, 228, 255, .25); background: linear-gradient(120deg, rgba(17, 58, 84, .45), rgba(12, 27, 46, .45)); }
+.skills-strip h2 { margin-bottom: 10px; font-size: clamp(1.6rem, 3vw, 2.4rem); }
+.skills-strip .copy-stack { max-width: 560px; font-size: .95rem; }
+.skills-strip .button { margin-top: 6px; }
+
+.filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 42px 0 30px; }
+.filter-button { min-height: 34px; padding: 0 14px; border: 1px solid rgba(142, 193, 238, .28); border-radius: 99px; background: rgba(255, 255, 255, .02); color: var(--muted); cursor: pointer; font-size: .8rem; font-weight: 700; transition: border-color .2s, color .2s, background .2s; }
+.filter-button:hover { border-color: var(--cyan); color: var(--ink); }
+.filter-button--active { border-color: var(--cyan); background: rgba(104, 228, 255, .12); color: var(--ink); }
+
+.project-card--featured { border-color: rgba(104, 228, 255, .34); }
+.project-card--featured::before { content: ""; position: absolute; top: 0; left: 0; width: 3px; height: 100%; background: var(--cyan); }
+
+.skills-page { padding-top: 100px; }
+.skills-page h1 { font-size: clamp(3rem, 7vw, 5.8rem); }
+.skills-page .lede { max-width: 760px; margin-bottom: 70px; }
+.skills-category { margin-top: 52px; padding-top: 26px; border-top: 1px solid var(--line); }
+.skills-category h2 { margin-bottom: 20px; font-size: 1.4rem; letter-spacing: -.02em; }
+.skill-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0; list-style: none; }
+.skill-entry { padding: 20px; border: 1px solid rgba(142, 193, 238, .19); background: linear-gradient(135deg, rgba(28, 58, 91, .28), rgba(12, 27, 46, .32)); }
+.skill-entry__heading { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 8px; }
+.skill-entry__heading strong { color: #dff2ff; font-size: 1rem; }
+.skill-entry__level { color: var(--cyan); font-size: .68rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.skill-entry p { margin: 0 0 12px; color: var(--muted); font-size: .86rem; line-height: 1.55; }
+.skill-entry__projects { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.skill-entry__projects .text-link { font-size: .8rem; }
+.skill-entry__no-evidence { margin: 0; color: var(--dim); font-size: .78rem; font-style: italic; }
+
+.about-directions { margin-top: 70px; }
+.about-directions h2 { font-size: 1.9rem; }
+.direction-grid--about { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.about-game-direction { margin-top: 70px; padding: 30px; border: 1px solid rgba(104, 228, 255, .28); background: linear-gradient(120deg, rgba(17, 58, 84, .4), rgba(12, 27, 46, .42)); }
+.about-game-direction h2 { font-size: 1.5rem; }
+.about-game-direction > p { max-width: 760px; color: var(--muted); font-size: 1.02rem; }
+
+.evidence-skill-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0; list-style: none; }
+.evidence-skill-list li { padding: 13px; border-left: 2px solid var(--cyan); background: rgba(104, 228, 255, .05); }
+.evidence-skill-list .text-link { font-size: .85rem; }
+.evidence-skill-list span { display: block; margin-top: 4px; color: var(--muted); font-size: .8rem; line-height: 1.5; }
+
+.site-footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.site-footer__links a { color: var(--cyan); font-size: .78rem; }
+
+@media (max-width: 900px) {
+  .direction-grid, .direction-grid--about, .skill-list, .evidence-skill-list { grid-template-columns: 1fr; }
+  .skills-strip, .site-footer { align-items: start; flex-direction: column; }
+}

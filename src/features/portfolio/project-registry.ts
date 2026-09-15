@@ -1,5 +1,5 @@
 import { registeredProjects } from "@/data/projects";
-import type { PortfolioProject, ProjectCategory } from "@/types/portfolio";
+import type { PortfolioProject, ProjectCategory, ProjectPriority } from "@/types/portfolio";
 
 function indexProjects(projects: readonly PortfolioProject[]) {
   const byId = new Map<string, PortfolioProject>();
@@ -29,7 +29,19 @@ export function getFeaturedProjects(): readonly PortfolioProject[] {
 }
 
 export function getProjectsByCategory(category: ProjectCategory): readonly PortfolioProject[] {
-  return projects.filter((project) => project.category === category);
+  return projects.filter((project) => project.category === category || project.secondaryCategories?.includes(category));
+}
+
+export function getProjectsByPriority(priority: ProjectPriority): readonly PortfolioProject[] {
+  return projects.filter((project) => project.priority === priority);
+}
+
+export function getRelatedProjects(projectId: string): readonly PortfolioProject[] {
+  const project = indexes.byId.get(projectId);
+  if (!project?.relatedProjectIds) return [];
+  return project.relatedProjectIds
+    .map((id) => indexes.byId.get(id))
+    .filter((related): related is PortfolioProject => Boolean(related));
 }
 
 export function getProjectById(id: string): PortfolioProject | undefined {

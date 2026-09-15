@@ -9,18 +9,22 @@
 | Field | Meaning |
 | --- | --- |
 | `id`, `slug`, `name` | Stable identity, URL identity, and display name |
-| `category`, `status`, `featured` | Classification and conventional presentation controls |
+| `category`, `secondaryCategories` | Primary category plus optional verified secondary context |
+| `status`, `priority`, `featured` | Lifecycle, visual importance, and home-page presence |
 | `summary`, `description` | Short and extended narrative |
 | `technologies`, `skills` | Display-ready technical vocabulary |
 | `architecture` | Optional overview plus ordered system layers |
 | `caseStudy` | Optional problem, solution, feature, and engineering-decision content for the generic detail template |
 | `thumbnail`, `imagePaths`, `links` | Optional conventional media/links |
+| `relatedProjectIds` | Verified relationships only; the detail page renders them automatically |
 | `demonstration` | A discriminated future-demo strategy |
 | `exhibit` | Optional 3D placement and appearance configuration |
 
-Allowed categories are currently `software-engineering`, `data-and-intelligence`, `game-development`, `interactive-systems`, and `experimental`. Statuses are `active`, `in-progress`, `concept`, and `archived`.
+Allowed categories: `software-engineering`, `data-and-intelligence`, `game-development`, `interactive-systems`, `experimental`, `mobile-development`, `developer-tools`, `web-development`, `desktop-application`, `automation`. Statuses: `active`, `in-progress`, `prototype`, `completed`, `concept`, `archived`. Priorities: `flagship`, `featured`, `supporting`, `experiment`, `archived` — flagships and featured projects carry the portfolio; `featured: true` controls the home page.
 
-`DemonstrationConfiguration` intentionally models information, external links, video, interactive scenes, and dedicated experiences, but only the information strategy is rendered today. `ExhibitConfiguration` models an area ID, presentation kind, position, accent, and optional interaction range.
+The full verified catalog, including which repositories were deliberately excluded, lives in `docs/PORTFOLIO_INVENTORY.md`.
+
+`DemonstrationConfiguration` intentionally models information, external links, video, interactive scenes, and dedicated experiences, but only the information strategy is rendered today. `ExhibitConfiguration` models an area ID, presentation kind, position, accent, and optional interaction range. The only first-class area today is `atlas-hub` (the reference environment); new areas add their stable ID to the `area` union and to `WorldAreas` before exhibits can reference them.
 
 `ProjectCaseStudy` is deliberately small: `problem`, `solution`, a list of titled `features`, and optional titled `engineeringDecisions`. It supplies content only; the layout is always the generic `ProjectDetails` composition. Lyrune is the reference record for a fully populated case study.
 
@@ -41,13 +45,15 @@ The registry creates `Map` indexes and throws on duplicate IDs or slugs when the
 
 ## Add a project
 
-1. Copy an existing record in `src/data/projects` and name it for the project, e.g. `my-project.ts`.
-2. Fill all required fields honestly; omit optional URLs/media that do not exist.
-3. Use `as const satisfies PortfolioProject`.
-4. Export and add the record to `src/data/projects/index.ts`.
-5. Run `npm run typecheck`; this catches invalid categories, demonstration configuration, and exhibit fields.
-6. Add an `exhibit` only if the project belongs in a mounted world area. The conventional website automatically sees every registered record.
-7. Add `caseStudy` only when its problem, solution, feature descriptions, and decisions can be supported by project evidence. The generic page automatically renders it.
+1. Verify the repository facts first (`docs/PORTFOLIO_INVENTORY.md`).
+2. Copy an existing record in `src/data/projects` and name it for the project, e.g. `my-project.ts`.
+3. Fill all required fields honestly (including `priority` and `status`); omit optional URLs/media that do not exist.
+4. Use `as const satisfies PortfolioProject`.
+5. Export and add the record to `src/data/projects/index.ts` (display order: flagships first).
+6. Run `npm run typecheck`; this catches invalid categories, statuses, priorities, demonstration configuration, and exhibit fields.
+7. Add an `exhibit` only if the project belongs in a mounted world area. The conventional website automatically sees every registered record.
+8. Add `caseStudy` only when its problem, solution, feature descriptions, and decisions can be supported by project evidence. The generic page automatically renders it.
+9. If the project demonstrates a skill, link it in `src/data/skills.ts` and update `docs/SKILL_EVIDENCE.md`.
 
 ## Relationships
 
@@ -60,6 +66,24 @@ PortfolioProject.exhibit.project-independent configuration
 ```
 
 The exhibit holds no project description or technology list. That data remains in the project record and is resolved only at presentation time.
+
+`relatedProjectIds` is the only relationship mechanism, and it must stay
+verified: no record currently sets it because the public repositories show
+no documented cross-project relationships. Derived-work attribution (Sonara →
+Harmony Music, Lucida-Sync → lucida-flow) lives in the record descriptions
+instead.
+
+## Profile and skills model
+
+- `PortfolioProfile` (`src/data/profile.ts`): one object for name, title,
+  intro paragraphs, career directions, and verified links. Pages import it
+  directly; no per-page copies.
+- `ProfileSkill` (`src/data/skills.ts`): id, name, category (a `SkillCategory`
+  union), qualitative `proficiencyLabel`, `relatedProjectIds`, `evidence`, and
+  `displayPriority`. Skills must reference registered project IDs and must be
+  supported by the repository evidence (see `docs/SKILL_EVIDENCE.md`).
+- Reverse lookups: `getSkillsForProject(projectId)` (detail pages) and
+  `getSkillsByCategory()` (skills page).
 
 ## Future CMS/API migration
 

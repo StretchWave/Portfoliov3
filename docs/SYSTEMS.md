@@ -12,11 +12,38 @@
 ## Project registry
 
 - **Purpose:** be the single query layer over local project records.
-- **Responsibilities:** uniquely index records and provide all/by-category/by-ID/by-slug/featured/exhibitable queries.
+- **Responsibilities:** uniquely index records and provide all/by-category/by-priority/by-ID/by-slug/featured/exhibitable/related queries.
 - **Dependencies:** `data/projects`, `types/portfolio`.
-- **Public interfaces:** `getAllProjects`, `getFeaturedProjects`, `getProjectsByCategory`, `getProjectById`, `getProjectBySlug`, `getProjectsWithExhibits`.
+- **Public interfaces:** `getAllProjects`, `getFeaturedProjects`, `getProjectsByCategory`, `getProjectsByPriority`, `getProjectById`, `getProjectBySlug`, `getProjectsWithExhibits`, `getRelatedProjects`.
 - **Data flow:** registered records → duplicate guard + maps → readonly queries.
 - **Extension:** preserve these function contracts when replacing local records with a CMS/API adapter.
+
+## Profile content
+
+- **Purpose:** single source of truth for the owner's identity and directions.
+- **Responsibilities:** name, title, intro paragraphs, career directions, verified links.
+- **Dependencies:** `types/portfolio` only (plain serializable data).
+- **Public interface:** `profile` from `src/data/profile.ts`.
+- **Data flow:** imported directly by home, about, and footer.
+- **Extension:** add verified links (LinkedIn/resume) here; never duplicate bio text in pages.
+
+## Evidence-based skills
+
+- **Purpose:** turn skills into evidence instead of claims.
+- **Responsibilities:** typed skill entries with qualitative proficiency labels, related project IDs, and evidence sentences; category grouping.
+- **Dependencies:** `types/portfolio`, project IDs.
+- **Public interfaces:** `profileSkills`, `getSkillsForProject`, `getSkillsByCategory`.
+- **Data flow:** skills registry → `/skills` page sections; reverse lookup → project detail "Skills this project demonstrates".
+- **Extension:** add a skill by editing `src/data/skills.ts` and `docs/SKILL_EVIDENCE.md`; verify the project link against the inventory first.
+
+## Project index filter
+
+- **Purpose:** let visitors group the catalog without a heavy interface.
+- **Responsibilities:** client-side category grouping with an accessible button bar.
+- **Dependencies:** project registry, project cards.
+- **Public interface:** `ProjectFilter`.
+- **Data flow:** all projects → active group → filtered cards.
+- **Extension:** extend `filterGroups` when categories change; keep the number of groups small.
 
 ## Project case-study template
 
@@ -38,12 +65,30 @@
 
 ## Canvas and world
 
-- **Purpose:** configure and render a small, readable 3D hub.
-- **Responsibilities:** Canvas DPR/renderer defaults, Suspense boundary, greybox environment, hub architecture, and an area-level composition component.
+- **Purpose:** configure and render the interactive world from the lazy chunk.
+- **Responsibilities:** Canvas DPR/renderer defaults, Suspense boundary, the world composition seam, and area-level composition.
 - **Dependencies:** React Three Fiber, Drei Grid, performance configuration.
-- **Public interfaces:** `PortfolioCanvas`, `PrototypeHub`, `WorldEnvironment`, `HubArchitecture`.
-- **Data flow:** Canvas → mounted area → environment/exhibits/controller/detector.
-- **Extension:** create a separately importable district module rather than growing `PrototypeHub` indefinitely.
+- **Public interfaces:** `PortfolioCanvas`, `WorldAreas`, `AtlasHub`, `HUB_BOUNDS`.
+- **Data flow:** Canvas → `WorldAreas` seam → mounted area (environment → architecture → navigation → exhibits → controller → detector).
+- **Extension:** add a new area as an independently mountable module under `src/three/world/areas/<area>/`; mount or dynamically import it from `WorldAreas`. Never append areas to an existing area module.
+
+## Environment language
+
+- **Purpose:** give every area a shared visual and structural vocabulary.
+- **Responsibilities:** the shared material palette, reusable architectural modules (walls, columns, ribs), emissive lighting fixtures, and the global atmosphere (background, fog, hemisphere, single shadow-casting sun, ground, grid).
+- **Dependencies:** Three.js materials; no project data.
+- **Public interfaces:** `getEnvironmentMaterials`, `environmentSemanticColors`, `WallSegment`, `Column`, `FrameRib`, `CeilingPanelLight`, `LightRibbon`, `WorldEnvironment`.
+- **Data flow:** areas compose these modules; the palette is created once and reused.
+- **Extension:** add a genuinely new surface type to the palette with a documented reason; do not create one-off materials for trivial variation.
+
+## Atlas Hub (reference area)
+
+- **Purpose:** the first polished environment slice; the reference for how any area is built and for the visual direction.
+- **Responsibilities:** a bounded exhibition hall (walls, light gantry, entrance, status wall), floor wayfinding (spine, threshold, chevrons), area lighting within budget, and mounting the data-driven exhibits for its area.
+- **Dependencies:** environment language, exhibit registry, explorer controller, interaction detector.
+- **Public interfaces:** `AtlasHub`, `HUB_BOUNDS`.
+- **Data flow:** area mounts → `ExhibitRegistry area="atlas-hub"` resolves exhibit configurations from project data.
+- **Extension:** do not grow it into the whole world; new districts are new area modules following its pattern (see `docs/VISUAL_DIRECTION.md` for identity rules).
 
 ## Explorer controller
 

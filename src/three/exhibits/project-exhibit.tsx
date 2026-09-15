@@ -7,6 +7,7 @@ import type { ExhibitPresentation } from "@/types/portfolio";
 import { useInteraction } from "@/three/interaction/interaction-provider";
 import type { WorldPosition } from "@/three/interaction/interaction-types";
 import { useInteractable } from "@/three/interaction/use-interactable";
+import { getEnvironmentMaterials } from "@/three/world/environment/environment-materials";
 
 interface ProjectExhibitProps {
   projectId: string;
@@ -18,8 +19,10 @@ interface ProjectExhibitProps {
 }
 
 /**
- * A reusable visual shell for a project. It deliberately receives data-shaped
- * props rather than importing any particular project record.
+ * A reusable visual shell for a project — a display plinth from the shared
+ * environment language. It deliberately receives data-shaped props rather
+ * than importing any particular project record: the accent color is the only
+ * project-configured visual input.
  */
 export function ProjectExhibit({
   projectId,
@@ -30,6 +33,7 @@ export function ProjectExhibit({
   interactionRange,
 }: ProjectExhibitProps) {
   const { requestInteraction } = useInteraction();
+  const materials = getEnvironmentMaterials();
   const definition = useMemo(() => ({
     id: `project-exhibit:${projectId}`,
     label: projectName,
@@ -44,31 +48,51 @@ export function ProjectExhibit({
 
   return (
     <group position={[...position]} onClick={(event) => { event.stopPropagation(); requestInteraction(definition.id); }}>
-      <mesh castShadow receiveShadow position={[0, 0.18, 0]}>
-        <cylinderGeometry args={[1.45, 1.7, 0.35, 8]} />
-        <meshStandardMaterial color="#142c46" metalness={0.58} roughness={0.38} />
+      {/* Base plinth in the shared structural material. */}
+      <mesh castShadow receiveShadow position={[0, 0.28, 0]}>
+        <cylinderGeometry args={[1.15, 1.35, 0.56, 8]} />
+        <primitive object={materials.structural} attach="material" />
       </mesh>
-      <mesh castShadow position={[0, 0.95, 0]}>
-        <boxGeometry args={[1.7, 1.25, 0.5]} />
-        <meshStandardMaterial color="#0f2136" metalness={0.4} roughness={0.34} />
+      {/* Accent under-glow ring marking the plinth as interactive. */}
+      <mesh position={[0, 0.585, 0]}>
+        <cylinderGeometry args={[1.28, 1.28, 0.05, 8]} />
+        <meshBasicMaterial color={accent} />
       </mesh>
-      <mesh position={[0, 1.04, 0.27]}>
-        <planeGeometry args={[1.28, terminalLike ? 0.76 : 0.93]} />
-        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.6} roughness={0.25} />
+      {/* Stem and display housing. */}
+      <mesh castShadow position={[0, 1.05, 0]}>
+        <boxGeometry args={[0.46, 0.9, 0.46]} />
+        <primitive object={materials.structural} attach="material" />
+      </mesh>
+      <mesh castShadow position={[0, 1.72, 0]}>
+        <boxGeometry args={[1.6, 1.05, 0.34]} />
+        <primitive object={materials.displayGlass} attach="material" />
+      </mesh>
+      {/* The screen surface carries the project accent. */}
+      <mesh position={[0, 1.72, 0.181]}>
+        <planeGeometry args={[1.34, terminalLike ? 0.62 : 0.82]} />
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.5} roughness={0.3} />
       </mesh>
       {terminalLike ? (
         <>
-          <mesh position={[0, 0.49, 0.32]}><boxGeometry args={[1.25, 0.06, 0.05]} /><meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.65} /></mesh>
-          <mesh position={[-0.38, 0.28, 0.32]}><boxGeometry args={[0.37, 0.04, 0.04]} /><meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.65} /></mesh>
+          <mesh position={[0, 1.42, 0.18]}>
+            <boxGeometry args={[1.2, 0.05, 0.3]} />
+            <primitive object={materials.displayGlass} attach="material" />
+          </mesh>
+          {[-0.3, 0, 0.3].map((x) => (
+            <mesh key={`status-${x}`} position={[x, 1.89, 0.19]}>
+              <boxGeometry args={[0.09, 0.03, 0.02]} />
+              <meshBasicMaterial color={accent} />
+            </mesh>
+          ))}
         </>
       ) : null}
-      <Html center position={[0, 1.86, 0]} distanceFactor={9} sprite>
+      <Html center position={[0, 2.62, 0]} distanceFactor={9} sprite>
         <div className="exhibit-label" style={{ borderColor: accent }}>
           <span style={{ color: accent }}>{presentation.replaceAll("-", " ")}</span>
           <strong>{projectName}</strong>
         </div>
       </Html>
-      <pointLight color={accent} intensity={2.2} distance={3.5} position={[0, 1.3, 0.45]} />
+      <pointLight color={accent} intensity={6} distance={4.5} position={[0, 2.1, 0.55]} />
     </group>
   );
 }

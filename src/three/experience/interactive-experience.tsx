@@ -29,7 +29,7 @@ export function InteractiveExperience({ onExit }: InteractiveExperienceProps) {
     }
 
     // Generic action events are an intentional extension point for future world systems.
-    console.info("Atlas interaction event has no prototype handler:", event.actionId);
+    console.info("Atlas interaction event has no handler in the current experience:", event.actionId);
   }, []);
 
   return (
@@ -37,7 +37,7 @@ export function InteractiveExperience({ onExit }: InteractiveExperienceProps) {
       <InteractionProvider onInteraction={handleInteraction}>
         <PortfolioCanvas />
         <div className="experience-topbar">
-          <span><b>ATLAS</b> / PROTOTYPE HUB</span>
+          <span><b>ATLAS</b> / REFERENCE HUB</span>
           <button type="button" onClick={onExit}>Exit 3D hub</button>
         </div>
         <InteractionHud />

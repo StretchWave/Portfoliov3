@@ -47,8 +47,8 @@ export function InteractivePortfolioShell() {
     <main className="interactive-entry">
       <section className="interactive-entry__content">
         <p className="eyebrow">Optional interactive portfolio</p>
-        <h1>Enter the prototype hub.</h1>
-        <p className="lede">A small WebGL environment that proves Atlas&apos; project, exhibit, player, and interaction architecture. Drag the scene to look, then click an exhibit or move near it and press <kbd>E</kbd>.</p>
+        <h1>Enter the reference hub.</h1>
+        <p className="lede">A compact WebGL exhibition hall — the Atlas reference environment — that proves the project, exhibit, player, and interaction architecture. Drag the scene to look, then click an exhibit or move near it and press <kbd>E</kbd>.</p>
         <div className="button-row">
           <button className="button button--primary" type="button" onClick={launchExperience} disabled={launchState === "loading"}>
             {launchState === "loading" ? "Loading 3D hub…" : "Launch 3D hub"} <span aria-hidden="true">→</span>
@@ -63,7 +63,7 @@ export function InteractivePortfolioShell() {
         ) : null}
       </section>
       <aside className="interactive-entry__notes" aria-label="Interactive hub details">
-        <div><span>01</span><p>Small greybox hub</p></div>
+        <div><span>01</span><p>Atlas reference hub</p></div>
         <div><span>02</span><p>Keyboard exploration</p></div>
         <div><span>03</span><p>Data-driven exhibits</p></div>
       </aside>

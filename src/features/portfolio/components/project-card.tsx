@@ -1,18 +1,20 @@
 import Link from "next/link";
 
 import { Tag } from "@/components/ui/tag";
-import type { PortfolioProject } from "@/types/portfolio";
+import type { PortfolioProject, ProjectPriority } from "@/types/portfolio";
 
 interface ProjectCardProps {
   project: PortfolioProject;
 }
 
 export function ProjectCard({ project }: ProjectCardProps) {
+  const featured = project.priority === "flagship" || project.priority === "featured";
+
   return (
-    <article className="project-card">
+    <article className={`project-card${featured ? " project-card--featured" : ""}`}>
       <div className="project-card__eyebrow">
         <span>{formatCategory(project.category)}</span>
-        <span>{project.status.replace("-", " ")}</span>
+        <span>{formatPriority(project.priority)} · {project.status.replaceAll("-", " ")}</span>
       </div>
       <h2>{project.name}</h2>
       <p>{project.summary}</p>
@@ -30,4 +32,14 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
 export function formatCategory(category: PortfolioProject["category"]): string {
   return category.replaceAll("-", " ");
+}
+
+export function formatPriority(priority: ProjectPriority): string {
+  switch (priority) {
+    case "flagship": return "Flagship";
+    case "featured": return "Featured";
+    case "supporting": return "Supporting";
+    case "experiment": return "Experiment";
+    case "archived": return "Archived";
+  }
 }

@@ -10,8 +10,21 @@ const forward = new Vector3();
 const right = new Vector3();
 const movement = new Vector3();
 
-/** Minimal first-person exploration, intentionally isolated from interaction and exhibits. */
-export function ExplorerController() {
+const DEFAULT_BOUNDS = { minX: -8, maxX: 8, minZ: -8, maxZ: 8 };
+
+export interface ExplorerBounds {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
+/**
+ * Minimal first-person exploration, intentionally isolated from interaction
+ * and exhibits. Bounds are owned by the mounted area so the controller stays
+ * reusable; movement is bounded, not collision/physics based.
+ */
+export function ExplorerController({ bounds = DEFAULT_BOUNDS }: { bounds?: ExplorerBounds }) {
   const pressedKeys = useRef(new Set<string>());
   const dragging = useRef(false);
   const previousPointer = useRef({ x: 0, y: 0 });
@@ -82,9 +95,9 @@ export function ExplorerController() {
     movement.copy(forward).multiplyScalar(forwardInput).addScaledVector(right, sideInput).normalize();
     camera.position.addScaledVector(movement, Math.min(delta, 0.05) * 4.2);
 
-    // The prototype uses a readable bounded hub, not a collision system.
-    camera.position.x = Math.max(-8, Math.min(8, camera.position.x));
-    camera.position.z = Math.max(-8, Math.min(8, camera.position.z));
+    // The area owns its walkable footprint; this is not a collision system.
+    camera.position.x = Math.max(bounds.minX, Math.min(bounds.maxX, camera.position.x));
+    camera.position.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, camera.position.z));
     camera.position.y = 1.7;
   });
 

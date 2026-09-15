@@ -4,6 +4,7 @@ const navigationItems = [
   { href: "/", label: "Overview" },
   { href: "/about", label: "About" },
   { href: "/projects", label: "Projects" },
+  { href: "/skills", label: "Skills" },
   { href: "/interactive", label: "Interactive hub" },
 ] as const;
 

@@ -1,6 +1,6 @@
 # Performance Strategy
 
-The target is a high-quality stylized experience that respects browser constraints. Atlas treats performance as an architectural constraint, not a late cleanup pass.
+The target is a high-quality stylized experience that respects browser constraints. Atlas treats performance as an architectural constraint, not a late cleanup pass. Concrete provisional budgets and the measurement process live in `docs/PERFORMANCE_BUDGETS.md`; this file describes the implemented strategy and boundaries.
 
 ## Implemented now
 
@@ -9,9 +9,10 @@ The target is a high-quality stylized experience that respects browser constrain
 | Initial web bundle | Conventional routes do not import `src/three`, Three.js, R3F, or Drei. |
 | Interactive entry | `/interactive` renders a small client launcher rather than an immediate Canvas. |
 | Engine/world loading | The click handler dynamically imports `interactive-experience`; the visitor must opt in. |
-| Rendering | DPR is capped at 1.5 and antialiasing is disabled; the prototype is made from low-cost primitives. |
-| Lighting | One shadow-casting directional light with a 1024 map; small point lights have finite distances. |
-| Scene boundary | `PrototypeHub` is an independently named world-area component inside a Suspense boundary. |
+| Rendering | DPR is capped at 1.5 and antialiasing is disabled; the reference hub is made from low-cost shared-material primitives. |
+| Lighting | One shadow-casting directional light with a 1024 map; emissive fixtures carry area lighting; small point lights have finite distances (~6 lights total in the hub). |
+| Materials | A shared lazy-instantiated palette (`environment-materials.ts`) is reused across the world; no per-mesh material duplication. |
+| Scene boundary | `WorldAreas` mounts the `AtlasHub` area module inside a Suspense boundary; future areas become dynamically imported modules there. |
 | Data lookup | Registry uses maps for repeated ID/slug lookup. |
 | Fallback | WebGL is checked before import; conventional project browsing remains available. |
 
@@ -49,7 +50,7 @@ The prototype has no external models or textures, so no asset loader or compress
 
 ## Avoid until necessary
 
-- A world-streaming engine, global graphics-settings store, automatic LOD generator, or an asset database for this two-exhibit greybox.
+- A world-streaming engine, global graphics-settings store, automatic LOD generator, or an asset database for the current two-exhibit reference hub.
 - Compression of prototype primitives or configuration added solely to support theoretical future files.
 - Loading all future districts “just in case.”
 - Browser-hosted AAA photorealism that trades project access for GPU requirements.

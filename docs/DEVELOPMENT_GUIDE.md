@@ -20,13 +20,29 @@ npm run build
 
 ## Add a portfolio project
 
-1. Create `src/data/projects/<slug>.ts` from an existing record.
-2. Export a constant that `satisfies PortfolioProject`.
-3. Register it in `src/data/projects/index.ts`.
-4. Run typecheck and open `/projects/<slug>`.
-5. If it should appear in the prototype hub, add an `exhibit` whose `area` is `prototype-hub`; otherwise leave it absent.
+1. Verify the repository facts first (`docs/PORTFOLIO_INVENTORY.md`).
+2. Create `src/data/projects/<slug>.ts` from an existing record, with a truthful `status` and `priority`.
+3. Export a constant that `satisfies PortfolioProject`.
+4. Register it in `src/data/projects/index.ts` (flagships first).
+5. Run typecheck and open `/projects/<slug>`.
+6. If it should appear in the Atlas Hub, add an `exhibit` whose `area` is `atlas-hub`; otherwise leave it absent.
+7. If it demonstrates a skill, link it in `src/data/skills.ts` and note it in `docs/SKILL_EVIDENCE.md`.
 
-Never add a project by editing `ProjectExhibit`, `PrototypeHub`, a case-study component, or the interaction provider. Those changes make a data record leak into unrelated architecture.
+Never add a project by editing `ProjectExhibit`, `AtlasHub`, a case-study component, or the interaction provider. Those changes make a data record leak into unrelated architecture.
+
+## Add profile or skill content
+
+1. Profile: edit `src/data/profile.ts` (name, title, intros, directions, links). The home page, about page, and footer read it directly — never duplicate the text in pages.
+2. Skills: edit `src/data/skills.ts`. Every entry needs a category, a qualitative proficiency label, `relatedProjectIds` (registered project IDs), and an evidence sentence. The `/skills` page and the project detail sections render automatically.
+3. Verify evidence against `docs/PORTFOLIO_INVENTORY.md` before claiming a project demonstrates a skill.
+
+## Add a category or status or priority
+
+1. Add the string to `projectCategories` / `projectStatuses` / `projectPriorities` in `src/types/portfolio.ts`.
+2. Update display naming (`project-card.tsx`, `project-filter.tsx`, detail hero) when it exists.
+3. Add documentation and representative data only if the value is a durable portfolio concept.
+
+The unions intentionally catch stale or misspelled data at compile time.
 
 ## Add a category
 
@@ -61,13 +77,14 @@ If the new object needs a different detection strategy, preserve the provider/ev
 
 ## Add a world area
 
-1. Create a mountable module such as `src/three/world/intelligent-systems-district.tsx`.
-2. Give it its own environment, exhibit registry area, and loading boundary.
-3. Dynamically import it from a small world-area router when there is a real navigation/loading need.
-4. Add data exhibit configurations using the new stable area ID.
-5. Profile the new district in isolation and with its transition path before expanding it further.
+1. Create a mountable module under `src/three/world/areas/<area-id>/<area-id>.tsx` following the Atlas Hub pattern (`atlas-hub.tsx`): compose `WorldEnvironment` + area architecture + area navigation + `ExhibitRegistry area="<area-id>"` + `ExplorerController bounds={...}` + `InteractionDetector`.
+2. Define the area's walkable `bounds` and export them; use the shared environment language (materials, modules, fixtures) for structure.
+3. Give it its own loading boundary: mount or dynamically import it from `WorldAreas` (`src/three/world/world-areas.tsx`). When a second area exists, convert `WorldAreas` into a router that dynamically imports only the active area.
+4. Add data exhibit configurations using the new stable area ID (extend the `area` union in `src/types/portfolio.ts` when the ID is a first-class area).
+5. Define the area's visual identity per `docs/VISUAL_DIRECTION.md` (one architectural idea, semantic colors preserved) and document it.
+6. Profile the new area in isolation and with its transition path before expanding it further.
 
-Do not append all districts to `PrototypeHub`; that defeats the intended scene-loading boundary.
+Do not append districts to `AtlasHub` or any existing area; that defeats the intended scene-loading boundary. Areas must stay independently mountable and (eventually) independently unloadable.
 
 ## Styling and accessibility
 
