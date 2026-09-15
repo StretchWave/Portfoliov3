@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 
 import { Tag } from "@/components/ui/tag";
+import { ProjectDemonstration } from "@/features/portfolio/demonstrations/project-demonstration";
 import type { PortfolioProject } from "@/types/portfolio";
 
 interface ProjectInformationPanelProps {
@@ -32,6 +33,8 @@ export function ProjectInformationPanel({ project, onClose }: ProjectInformation
         {project.technologies.slice(0, 5).map((technology) => <Tag key={technology}>{technology}</Tag>)}
       </div>
       <p className="project-panel__description">{project.description}</p>
+      {/* Interactive Demonstration Section */}
+      <ProjectDemonstration project={project} />
       {project.architecture ? (
         <div className="project-panel__architecture">
           <span>System layers</span>

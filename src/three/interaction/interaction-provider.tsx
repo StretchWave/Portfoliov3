@@ -5,11 +5,20 @@ import type { ReactNode } from "react";
 
 import type { InteractionEvent, InteractableDefinition, WorldPosition } from "./interaction-types";
 
+export interface PlayerTransform {
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+}
+
 interface InteractionContextValue {
   focused: InteractableDefinition | undefined;
   register: (target: InteractableDefinition) => () => void;
-  updateFocusFromPosition: (position: { x: number; y: number; z: number }) => void;
+  updateFocusFromPosition: (position: { x: number; y: number; z: number }, yaw?: number) => void;
   requestInteraction: (targetId?: string) => void;
+  getPlayerTransform: () => PlayerTransform;
+  getTargets: () => InteractableDefinition[];
 }
 
 const InteractionContext = createContext<InteractionContextValue | null>(null);
@@ -28,9 +37,13 @@ function squaredDistance(position: { x: number; y: number; z: number }, target: 
 
 export function InteractionProvider({ children, onInteraction }: InteractionProviderProps) {
   const targets = useRef(new Map<string, InteractableDefinition>());
+  const playerTransformRef = useRef<PlayerTransform>({ x: 0, y: 1.7, z: 0, yaw: 0 });
   const onInteractionRef = useRef(onInteraction);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   onInteractionRef.current = onInteraction;
+
+  const getPlayerTransform = useCallback(() => playerTransformRef.current, []);
+  const getTargets = useCallback(() => Array.from(targets.current.values()), []);
 
   const register = useCallback((target: InteractableDefinition) => {
     targets.current.set(target.id, target);
@@ -40,7 +53,8 @@ export function InteractionProvider({ children, onInteraction }: InteractionProv
     };
   }, []);
 
-  const updateFocusFromPosition = useCallback((position: { x: number; y: number; z: number }) => {
+  const updateFocusFromPosition = useCallback((position: { x: number; y: number; z: number }, yaw = 0) => {
+    playerTransformRef.current = { x: position.x, y: position.y, z: position.z, yaw };
     let nearestId: string | null = null;
     let nearestDistance = Number.POSITIVE_INFINITY;
 
@@ -68,7 +82,9 @@ export function InteractionProvider({ children, onInteraction }: InteractionProv
     register,
     updateFocusFromPosition,
     requestInteraction,
-  }), [focusedId, register, requestInteraction, updateFocusFromPosition]);
+    getPlayerTransform,
+    getTargets,
+  }), [focusedId, register, requestInteraction, updateFocusFromPosition, getPlayerTransform, getTargets]);
 
   return <InteractionContext.Provider value={value}>{children}</InteractionContext.Provider>;
 }

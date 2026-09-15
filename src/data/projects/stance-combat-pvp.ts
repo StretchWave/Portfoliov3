@@ -13,5 +13,12 @@ export const stanceCombatPvpProject = {
     "A game-design concept in the works: turn-based strategic combat where timing is the skill — dodge, block, and timed parry against an opponent — built around three stances (strength, agility, endurance), each with its own skill tree and stat-driven progression, with a potential hybrid-stance path. This is a design concept: no public repository or playable build exists yet, and no mechanic is claimed as implemented.",
   technologies: ["Game design", "Combat systems design"],
   skills: ["Combat systems design", "Game balance thinking", "Stance & progression design"],
-  demonstration: { kind: "information" },
+  demonstration: { kind: "combat-timing-trainer" },
+  exhibit: {
+    area: "creative-workshop",
+    presentation: "installation",
+    position: [0, 0, -5.2],
+    accent: "#f43f5e",
+    interactionRange: 2.8,
+  },
 } as const satisfies PortfolioProject;

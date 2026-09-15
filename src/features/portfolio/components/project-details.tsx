@@ -9,6 +9,7 @@ import { ProjectDetailRelated } from "./project-detail-related";
 import { ProjectDetailSkills } from "./project-detail-skills";
 import { ProjectDetailTechnology } from "./project-detail-technology";
 import { ProjectInteractiveCta } from "./project-interactive-cta";
+import { ProjectDemonstration } from "../demonstrations/project-demonstration";
 
 import Link from "next/link";
 
@@ -17,6 +18,7 @@ export function ProjectDetails({ project }: { project: PortfolioProject }) {
     <article className="project-detail">
       <ProjectDetailHero project={project} />
       <ProjectDetailOverview project={project} />
+      <ProjectDemonstration project={project} />
       <ProjectDetailFeatures caseStudy={project.caseStudy} />
       <ProjectDetailTechnology project={project} />
       <ProjectDetailSkills project={project} />

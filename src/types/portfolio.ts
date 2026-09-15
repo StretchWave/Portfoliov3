@@ -33,7 +33,11 @@ export type DemonstrationConfiguration =
   | { kind: "external"; label: string; href: string }
   | { kind: "video"; title: string; source: string }
   | { kind: "interactive-scene"; sceneId: string }
-  | { kind: "dedicated-experience"; route: string };
+  | { kind: "dedicated-experience"; route: string }
+  | { kind: "audio-visualizer"; sampleTrackTitle?: string }
+  | { kind: "interactive-terminal"; initialCommand?: string; availableCommands: Record<string, string> }
+  | { kind: "flood-risk-simulator"; defaultDistrict?: string }
+  | { kind: "combat-timing-trainer" };
 
 export type ExhibitPresentation =
   | "information-display"
@@ -41,9 +45,18 @@ export type ExhibitPresentation =
   | "portal"
   | "installation";
 
+export const worldAreaIds = [
+  "atlas-hub",
+  "software-district",
+  "intelligence-observatory",
+  "creative-workshop",
+] as const;
+
+export type WorldAreaId = (typeof worldAreaIds)[number];
+
 export interface ExhibitConfiguration {
   /** A stable world-area identifier; it is not a display name. */
-  area: "atlas-hub" | (string & {});
+  area: WorldAreaId | (string & {});
   presentation: ExhibitPresentation;
   position: readonly [number, number, number];
   accent: string;
@@ -97,6 +110,7 @@ export interface PortfolioProject {
   relatedProjectIds?: readonly string[];
   demonstration: DemonstrationConfiguration;
   exhibit?: ExhibitConfiguration;
+  exhibits?: readonly ExhibitConfiguration[];
 }
 
 /* ------------------------------------------------------------------ */

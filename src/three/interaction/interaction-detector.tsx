@@ -14,14 +14,22 @@ export function InteractionDetector() {
   const { requestInteraction, updateFocusFromPosition } = useInteraction();
 
   useFrame(({ camera }) => {
-    updateFocusFromPosition(camera.position);
+    updateFocusFromPosition(camera.position, camera.rotation.y);
   });
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.repeat || event.key.toLowerCase() !== "e") return;
       const target = event.target;
-      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLButtonElement) return;
+      if (
+        target instanceof HTMLElement &&
+        (target.closest(".project-panel") ||
+          target.closest(".command-backdrop") ||
+          target.closest(".controls-modal-backdrop") ||
+          target.closest("input, textarea, button, select"))
+      ) {
+        return;
+      }
 
       requestInteraction();
     }

@@ -70,4 +70,13 @@ export const sonaraProject = {
     accent: "#f472d0",
     interactionRange: 3.1,
   },
+  exhibits: [
+    {
+      area: "creative-workshop",
+      presentation: "portal",
+      position: [-4.2, 0, -2.5],
+      accent: "#f472d0",
+      interactionRange: 2.8,
+    },
+  ],
 } as const satisfies PortfolioProject;

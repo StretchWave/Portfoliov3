@@ -5,6 +5,7 @@ import { PageShell } from "@/components/layout/page-shell";
 import { getSkillsByCategory } from "@/data/skills";
 import { getProjectById } from "@/features/portfolio/project-registry";
 import type { SkillCategory } from "@/types/portfolio";
+import { DiscoveryTracker } from "@/features/portfolio/journal/discovery-tracker";
 
 export const metadata: Metadata = { title: "Skills" };
 
@@ -39,6 +40,7 @@ export default function SkillsPage() {
   return (
     <PageShell>
       <section className="section-wrap skills-page">
+        <DiscoveryTracker milestoneId="sys-skills-evidence" />
         <p className="eyebrow">Evidence-based skills</p>
         <h1>What I know,<br /><em>and where it shows.</em></h1>
         <p className="lede">

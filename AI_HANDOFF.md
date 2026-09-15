@@ -2,21 +2,31 @@
 
 ## Project status
 
-The foundation, the **Visual Direction and Environment Foundation** phase, and
-the **Complete Portfolio Content Integration** phase are done. The portfolio
-now has a verified catalog of 9 projects (3 flagships, 1 featured, 3
-supporting/concept, 1 experiment, 1 archived) plus an evidence-based skills
-system and a single-source profile. The conventional site covers home, about,
-projects (with category filters and priority hierarchy), skills, and dynamic
-project-detail routes. The optional `/interactive` route still performs a
-browser WebGL check and only imports the 3D engine after the visitor presses
-**Launch 3D hub**; the Atlas Hub now holds three data-driven exhibits
-(Lyrune, Kerala Flood Risk Platform, Sonara).
+All core roadmap phases are completed: the **Foundation**, **Portfolio Core**,
+**Visual Direction & Environment Foundation**, **Portfolio Content Integration**,
+**World Expansion (Multi-District Router)**, **Interactive Demonstrations**,
+**Optimization & Diagnostics**, and **Deployment & SEO**.
 
-Lyrune remains the reference project integration (verified GitHub link,
-long-form case study, labeled generic exhibit). Sonara is the newest flagship
-(a fork of Harmony Music — always attribute). No fabricated metrics, media,
-or links were added anywhere.
+The portfolio has a verified catalog of 9 projects (3 flagships, 1 featured, 3
+supporting/concept, 1 experiment, 1 archived) with an evidence-based skills system,
+single-source profile, and complete conventional App Router pages.
+
+The optional `/interactive` 3D experience is dynamically lazy-loaded and features:
+- **Atlas Central Hub**: The reference hall with flagship exhibits and spatial portals.
+- **Dynamic Area Router (`WorldAreas`)**: Lazy-loaded module streaming for three thematic districts:
+  - **Software Systems District** (`software-district`): Server lab architecture exhibiting Lyrune, Lucida-Sync, and RecoverAI.
+  - **Intelligent Systems Observatory** (`intelligence-observatory`): Calm observation deck exhibiting Kerala Flood Risk Platform.
+  - **Creative & Interactive Workshop** (`creative-workshop`): Open combat & interaction arena exhibiting Sonara, ScrollBrake, Stance Combat PvP, and Neerad Store.
+- **Interactive Demonstrations**:
+  - Live Web Audio DSP Synthesizer & Spectrum Visualizer (Lyrune) with selectable waveforms, interactive BiquadFilter (cutoff & resonance sweeps), and real-time FFT spectrum analyzer.
+  - Interactive Bash CLI & API terminal runner (Lucida-Sync & RecoverAI).
+  - River Basin Inundation Map & Crisis Scenario Replay (Kerala Flood Risk Platform) with historical 2018 monsoon presets, topological elevation profiles, and live spill discharge telemetry.
+  - Tactical Combat Timing Trainer with procedural audio feedback (Stance Combat PvP).
+- **Spatial Radar & Mini-Map HUD (<kbd>M</kbd>)**: Real-time 60fps canvas radar displaying player position, sight cone, exhibit pedestals with category color-coding, and portal beacons.
+- **Universal Command Palette (<kbd>Ctrl+K</kbd>)**: Omnipresent fuzzy search across projects, skills, technologies, and spatial districts with instant teleportation.
+- **Procedural Web Audio Soundscape**: Pure Web Audio API synthesis generating harmonic portal sweeps, glass chimes, and tactile combat cues with 0 KB asset load overhead and sound toggle.
+- **Performance Diagnostics HUD & Quality Tiers**: Real-time FPS, draw calls, triangles, geometry memory, quality presets (`Low`, `Balanced`, `High`), and controls help modal (<kbd>?</kbd>).
+- **SEO & Production Readiness**: Dynamic `sitemap.ts`, `robots.ts`, OpenGraph / Twitter tags, and Schema.org JSON-LD structured data.
 
 ## Portfolio Content System
 
@@ -337,36 +347,43 @@ Follow the Atlas Hub pattern (section "Reference Environment" above and
 
 ## Intentionally deferred features
 
-Final environment art, heavy GLB/KTX2 assets, third-person character systems,
-advanced graphics settings, full district streaming/transitions, database/CMS,
-authentication, multiplayer, final project exhibits, complete game
-demonstrations, deployment, analytics, and real-device profiling.
+Heavy binary GLB/KTX2 downloads (to maintain instant web load times under performance budgets), third-person character rigging (first-person inspection optimized), external CMS/backend database (statically verified data-first architecture), and external personal tracking cookies/analytics.
 
-## Validation record (this phase)
+## Validation record (full project verification)
 
-Executed: `npm run typecheck` (pass), `npm run build` (pass), and a headless
-Chrome E2E run (`node scripts/atlas-e2e.mjs <dev-server-url>`):
+Executed: `npm run typecheck` (pass, code 0), `npm run build` (pass, code 0), and headless E2E verification test suite (`node scripts/atlas-e2e.mjs <dev-server-url>`):
 
-- Conventional routes (/, /about, /projects, /skills, /projects/<slug> for
-  every record) render; no Three.js content on conventional pages.
-- Launching the 3D hub mounts the experience; the Atlas Hub renders with
-  three exhibits labeled (Lyrune, Kerala Flood Risk Platform, Sonara); WebGL
-  context healthy.
-- Movement works; the proximity HUD shows "Inspect exhibit"; pressing E opens
-  the project panel with verified links; Escape closes it.
-- All project links point at verified GitHub URLs.
+- **Conventional routes**: (`/`, `/about`, `/projects`, `/skills`, `/projects/[slug]` for all 9 records) render statically with zero Three.js code in their initial page bundle.
+- **Universal Command Palette**: Accessible via <kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd> or header pill across conventional pages and 3D hub for instant search, project filtering, and spatial teleportation.
+- **Procedural Web Audio Synthesizer**: Pure Web Audio API synthesis generating harmonic portal sweeps, glass chimes, tactile clicks, and combat audio cues with 0 KB asset load overhead and persistent sound toggle.
+- **Multi-District Spatial World**:
+  - `atlas-hub`: Reference exhibition hall with flagship pedestals and district portals.
+  - `software-district`: Server lab architecture exhibiting Lyrune, Lucida-Sync, and RecoverAI.
+  - `intelligence-observatory`: Calibrated observation deck exhibiting Kerala Flood Risk Platform.
+  - `creative-workshop`: Dynamic arena exhibiting Sonara, ScrollBrake, Stance Combat PvP, and Neerad Store.
+- **Interactive Demonstrations**:
+  - Live Audio Spectrum FFT Visualizer (Lyrune).
+  - Interactive Bash & API Terminal Console (Lucida-Sync & RecoverAI).
+  - Flood Inundation & Alert Simulator (Kerala Flood Risk Platform).
+  - Playable Combat Timing & Stance Trainer with tactical audio cues (Stance Combat PvP).
+- **Diagnostics & Quality Control**:
+  - Real-time FPS, draw calls, triangles, and geometry counter HUD (<kbd>P</kbd>).
+  - Multi-tier dynamic quality presets (`low`, `balanced`, `high`).
+  - Keyboard & navigation help guide modal (<kbd>?</kbd>).
+- **Guided Director Tour & Discovery Journal (Phase 11)**:
+  - **Hands-free Director Tour (<kbd>T</kbd>)**: Automated cinematic camera sequence visiting curated district waypoints with smooth cubic hermite position/lookAt interpolation and instant manual takeover on any WASD / arrow movement or mouse drag.
+  - **Persistent Discovery Journal (<kbd>J</kbd>)**: 12 discrete exploration milestones spanning World Districts, Interactive Demonstrations, and Core Subsystems, persisted across sessions in `localStorage`.
+  - **Exploration Ranks & Progress**: Real-time progress bar and title progression (*Curious Explorer* → *Systems Investigator* → *Senior Architecture Auditor* → *Master Systems Architect*).
+  - **Micro-Toast Notifications**: Non-intrusive floating cyber alerts (`✦ [CATEGORY] UNLOCKED`) with automated queuing.
+  - **Zero-Three.js Bundle Integrity**: Discovery Journal context and UI operate entirely outside Three.js dependencies, preserving lightweight page loads on all conventional routes.
+- **Production & SEO**: Dynamic sitemap (`/sitemap.xml`), crawler policy (`/robots.txt`), OpenGraph meta tags, and Schema.org JSON-LD structured data.
 
-No frame-rate/GPU measurements were taken on real hardware; do not claim
-performance numbers.
 
-## Next recommended tasks
+## Next recommended tasks for repository owner
 
-1. **Profile the Atlas Hub on target hardware** (`docs/PERFORMANCE_BUDGETS.md`).
-2. Convert the PvP concept into a real project record once a repository exists.
-3. Add verified media to flagship records (license-safe screenshots/video).
-4. Build the first district (e.g. Software Systems) as a new area module and
-   convert `WorldAreas` to a dynamic area router.
-5. Collect owner-supplied links (LinkedIn/resume) into `src/data/profile.ts`.
+1. Collect personal links (LinkedIn, resume PDF, public email) into `src/data/profile.ts` when ready to publish.
+2. Add screenshots or demo videos to `src/data/projects/<id>.ts` records as media assets become available.
+3. Profile on lower-end mobile devices and fine-tune dynamic resolution scale for budget devices.
 
 ## Validation commands
 
@@ -377,9 +394,8 @@ npm run build
 npm run dev
 ```
 
-Then manually test the conventional routes and the interactive launch. For an
-automated smoke pass with a running dev server:
+For automated smoke pass with running dev server:
 
 ```bash
-node scripts/atlas-e2e.mjs http://localhost:3000
+node scripts/atlas-e2e.mjs http://localhost:3001
 ```

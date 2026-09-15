@@ -19,32 +19,67 @@ export interface ExplorerBounds {
   maxZ: number;
 }
 
+export interface ExplorerControllerProps {
+  bounds?: ExplorerBounds;
+  initialPosition?: readonly [number, number, number];
+  initialYaw?: number;
+}
+
 /**
  * Minimal first-person exploration, intentionally isolated from interaction
  * and exhibits. Bounds are owned by the mounted area so the controller stays
  * reusable; movement is bounded, not collision/physics based.
  */
-export function ExplorerController({ bounds = DEFAULT_BOUNDS }: { bounds?: ExplorerBounds }) {
+export function ExplorerController({
+  bounds = DEFAULT_BOUNDS,
+  initialPosition,
+  initialYaw = 0,
+}: ExplorerControllerProps) {
   const pressedKeys = useRef(new Set<string>());
   const dragging = useRef(false);
   const previousPointer = useRef({ x: 0, y: 0 });
+  const initialized = useRef(false);
   const { camera } = useThree();
 
   useEffect(() => {
+    if (!initialized.current) {
+      if (initialPosition) {
+        camera.position.set(...initialPosition);
+      }
+      camera.rotation.order = "YXZ";
+      camera.rotation.set(0, initialYaw, 0);
+      initialized.current = true;
+    }
+  }, [camera, initialPosition, initialYaw]);
+
+  useEffect(() => {
     function updateKey(event: KeyboardEvent, pressed: boolean) {
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
       const key = event.key.toLowerCase();
       if (!movementKeys.has(key)) return;
       pressedKeys.current[pressed ? "add" : "delete"](key);
       event.preventDefault();
     }
 
+    function onBlur() {
+      pressedKeys.current.clear();
+      dragging.current = false;
+    }
+
     const onKeyDown = (event: KeyboardEvent) => updateKey(event, true);
     const onKeyUp = (event: KeyboardEvent) => updateKey(event, false);
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
     };
   }, []);
 

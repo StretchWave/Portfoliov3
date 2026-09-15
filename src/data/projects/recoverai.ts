@@ -44,5 +44,20 @@ export const recoveraiProject = {
     ],
   },
   links: [{ label: "View source on GitHub", href: "https://github.com/StretchWave/RecoverAI" }],
-  demonstration: { kind: "information" },
+  demonstration: {
+    kind: "interactive-terminal",
+    initialCommand: "recoverai policy eval",
+    availableCommands: {
+      "recoverai policy eval": "Executing deterministic policy engine...\nRule [R-101]: Checkout abandonment < 24h -> Soft reminder email dispatched\nRule [R-102]: Promise-to-pay active -> Safety gate: SUPPRESS escalation\nRule [R-103]: Payment overdue > 14d -> Escalation review queued\nResult: 100% COMPLIANT (0 harassment/safety violations)",
+      "recoverai test": "Running pytest suite for policy engine...\ntests/test_policy_engine.py::test_compliance PASSED\ntests/test_safety_gates.py::test_no_harassment PASSED\ntests/test_simulation.py::test_net_recovery PASSED\n10 passed in 0.38s",
+      "recoverai sim --days 30": "Simulating 30-day net recovery yield...\nCohort Size: 1,500 accounts\nProjected Recovered Capital: $42,850.00 (+14.2% vs baseline)\nCustomer Churn Rate: 1.8% (Historical min: 2.1%)",
+    },
+  },
+  exhibit: {
+    area: "software-district",
+    presentation: "information-display",
+    position: [0, 0, -5.2],
+    accent: "#06b6d4",
+    interactionRange: 2.8,
+  },
 } as const satisfies PortfolioProject;

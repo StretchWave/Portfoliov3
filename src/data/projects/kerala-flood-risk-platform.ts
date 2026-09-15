@@ -66,7 +66,7 @@ export const keralaFloodRiskPlatformProject = {
     ],
   },
   links: [{ label: "View source on GitHub", href: "https://github.com/StretchWave/kerala_flood_risk" }],
-  demonstration: { kind: "information" },
+  demonstration: { kind: "flood-risk-simulator", defaultDistrict: "Idukki Reservoir Catchment" },
   exhibit: {
     area: "atlas-hub",
     presentation: "information-display",
@@ -74,4 +74,13 @@ export const keralaFloodRiskPlatformProject = {
     accent: "#ffc76b",
     interactionRange: 3.1,
   },
+  exhibits: [
+    {
+      area: "intelligence-observatory",
+      presentation: "information-display",
+      position: [0, 0, -3.8],
+      accent: "#818cf8",
+      interactionRange: 2.8,
+    },
+  ],
 } as const satisfies PortfolioProject;

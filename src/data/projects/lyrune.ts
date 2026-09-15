@@ -70,7 +70,7 @@ export const lyruneProject = {
     ],
   },
   links: [{ label: "View Lyrune source on GitHub", href: "https://github.com/StretchWave/Lyrune" }],
-  demonstration: { kind: "information" },
+  demonstration: { kind: "audio-visualizer", sampleTrackTitle: "Lyrune DSP Engine — WASAPI Spectral Capture" },
   exhibit: {
     area: "atlas-hub",
     presentation: "terminal",
@@ -78,4 +78,13 @@ export const lyruneProject = {
     accent: "#68e4ff",
     interactionRange: 3.1,
   },
+  exhibits: [
+    {
+      area: "software-district",
+      presentation: "terminal",
+      position: [-4.0, 0, -2.5],
+      accent: "#68e4ff",
+      interactionRange: 2.8,
+    },
+  ],
 } as const satisfies PortfolioProject;

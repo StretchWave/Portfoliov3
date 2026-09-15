@@ -53,5 +53,9 @@ export function getProjectBySlug(slug: string): PortfolioProject | undefined {
 }
 
 export function getProjectsWithExhibits(area?: string): readonly PortfolioProject[] {
-  return projects.filter((project) => project.exhibit && (!area || project.exhibit.area === area));
+  return projects.filter((project) => {
+    if (!area) return Boolean(project.exhibit || project.exhibits?.length);
+    if (project.exhibit?.area === area) return true;
+    return project.exhibits?.some((ex) => ex.area === area);
+  });
 }

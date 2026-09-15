@@ -21,4 +21,11 @@ export const neeradStoreProject = {
   },
   links: [{ label: "View source on GitHub", href: "https://github.com/StretchWave/neerad_store" }],
   demonstration: { kind: "information" },
+  exhibit: {
+    area: "creative-workshop",
+    presentation: "information-display",
+    position: [-4.2, 0, 1.8],
+    accent: "#10b981",
+    interactionRange: 2.8,
+  },
 } as const satisfies PortfolioProject;

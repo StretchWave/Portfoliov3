@@ -45,4 +45,11 @@ export const scrollbrakeProject = {
   },
   links: [{ label: "View source on GitHub", href: "https://github.com/StretchWave/ScrollBrake" }],
   demonstration: { kind: "information" },
+  exhibit: {
+    area: "creative-workshop",
+    presentation: "terminal",
+    position: [4.2, 0, -2.5],
+    accent: "#a855f7",
+    interactionRange: 2.8,
+  },
 } as const satisfies PortfolioProject;

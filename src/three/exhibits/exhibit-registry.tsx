@@ -14,13 +14,20 @@ export function ExhibitRegistry({ area }: ExhibitRegistryProps) {
 
   return (
     <group>
-      {projects.map((project) => {
-        const exhibit = project.exhibit;
-        if (!exhibit) return null;
+      {projects.flatMap((project) => {
+        const configs = [];
+        if (project.exhibit && project.exhibit.area === area) {
+          configs.push(project.exhibit);
+        }
+        if (project.exhibits) {
+          for (const ex of project.exhibits) {
+            if (ex.area === area) configs.push(ex);
+          }
+        }
 
-        return (
+        return configs.map((exhibit, index) => (
           <ProjectExhibit
-            key={project.id}
+            key={`${project.id}-${exhibit.area}-${index}`}
             projectId={project.id}
             projectName={project.name}
             presentation={exhibit.presentation}
@@ -28,7 +35,7 @@ export function ExhibitRegistry({ area }: ExhibitRegistryProps) {
             accent={exhibit.accent}
             interactionRange={exhibit.interactionRange ?? 2.8}
           />
-        );
+        ));
       })}
     </group>
   );

@@ -44,5 +44,21 @@ export const lucidaSyncProject = {
     ],
   },
   links: [{ label: "View source on GitHub", href: "https://github.com/StretchWave/lucida-sync" }],
-  demonstration: { kind: "information" },
+  demonstration: {
+    kind: "interactive-terminal",
+    initialCommand: "lucida --help",
+    availableCommands: {
+      "lucida --help": "Lucida-Sync CLI v1.2.0\nUsage: lucida [OPTIONS] COMMAND [ARGS]...\n\nCommands:\n  search    Search across supported streaming sources\n  download  Fetch lossless audio tracks with metadata\n  status    Check API gateway and scraper session pool\n  health    Run healthcheck across worker nodes",
+      "lucida search 'Aether'": "Searching Lucida streaming catalog...\n[200 OK] Found 3 tracks:\n  1. Aether - Luminescence [FLAC 24-bit/96kHz]\n  2. Aether - Drifting [FLAC 16-bit/44.1kHz]\n  3. Aether - Void Reverie [MP3 320kbps]",
+      "lucida status": "Session Pool: Healthy\nActive Proxies: 4/4\nRate Limit Status: 18 req/min (Normal)\nUpstream Latency: 112ms",
+      "lucida download --track 1": "Initiating download session...\nResolving upstream stream tokens...\nFetching Aether - Luminescence.flac [68.4 MB]\nProgress: [========================================] 100%\nMetadata tag injection: COMPLETE\nSaved to ./downloads/Aether - Luminescence.flac",
+    },
+  },
+  exhibit: {
+    area: "software-district",
+    presentation: "terminal",
+    position: [4.0, 0, -2.5],
+    accent: "#38bdf8",
+    interactionRange: 2.8,
+  },
 } as const satisfies PortfolioProject;
