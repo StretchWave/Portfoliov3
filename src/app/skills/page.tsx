@@ -7,6 +7,8 @@ import { getProjectById } from "@/features/portfolio/project-registry";
 import type { SkillCategory } from "@/types/portfolio";
 import { DiscoveryTracker } from "@/features/portfolio/journal/discovery-tracker";
 
+import { SkillsMatrixExplorer } from "@/features/portfolio/components/skills-matrix-explorer";
+
 export const metadata: Metadata = { title: "Skills" };
 
 const categoryOrder: readonly SkillCategory[] = [
@@ -47,6 +49,9 @@ export default function SkillsPage() {
           Skills are qualitative on purpose — no inflated percentages. Each entry links to the project that
           demonstrates it; where there is no public project yet, the label says so.
         </p>
+
+        <SkillsMatrixExplorer />
+
 
         {categoryOrder.map((category) => {
           const skills = skillsByCategory.get(category) ?? [];

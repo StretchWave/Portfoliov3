@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { profile } from "@/data/profile";
+import { DiscoveryJournalProvider } from "@/features/portfolio/journal/discovery-journal-context";
+import { DiscoveryJournalModal } from "@/features/portfolio/journal/discovery-journal-modal";
 
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://mishal.dev"),
   title: {
     default: "Project Atlas | Mohammed Mishal",
     template: "%s | Project Atlas",
@@ -37,9 +40,6 @@ const jsonLd = {
   description: profile.introShort,
   sameAs: profile.links.map((l) => l.href),
 };
-
-import { DiscoveryJournalProvider } from "@/features/portfolio/journal/discovery-journal-context";
-import { DiscoveryJournalModal } from "@/features/portfolio/journal/discovery-journal-modal";
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (

@@ -56,12 +56,14 @@ export function PerformanceProvider({ children }: { children: ReactNode }) {
         setShowDiagnostics((prev) => !prev);
       } else if (e.key === "?" || (e.shiftKey && e.key === "/")) {
         setShowHelp((prev) => !prev);
+      } else if (e.key === "Escape" && showHelp) {
+        setShowHelp(false);
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [showHelp]);
 
   const value = useMemo<PerformanceContextValue>(
     () => ({

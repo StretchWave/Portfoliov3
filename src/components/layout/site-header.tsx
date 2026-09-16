@@ -9,6 +9,8 @@ const navigationItems = [
   { href: "/about", label: "About" },
   { href: "/projects", label: "Projects" },
   { href: "/skills", label: "Skills" },
+  { href: "/sandbox", label: "Sandbox" },
+  { href: "/resume", label: "Resume" },
   { href: "/interactive", label: "Interactive hub" },
 ] as const;
 

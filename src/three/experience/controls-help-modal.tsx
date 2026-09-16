@@ -34,8 +34,12 @@ export function ControlsHelpModal() {
             <p>Move explorer through the hall</p>
           </div>
           <div className="control-item">
-            <kbd>Click + Drag</kbd>
-            <p>Look around and orbit perspective</p>
+            <kbd>Drag scene</kbd>
+            <p>Rotate camera perspective / look around</p>
+          </div>
+          <div className="control-item">
+            <kbd>Touch Joystick</kbd>
+            <p>Mobile virtual movement thumbstick & swipe-to-look</p>
           </div>
           <div className="control-item">
             <kbd>E</kbd> / <kbd>Click Exhibit</kbd>
@@ -44,6 +48,26 @@ export function ControlsHelpModal() {
           <div className="control-item">
             <kbd>E</kbd> / <kbd>Click Portal</kbd>
             <p>Travel between world districts</p>
+          </div>
+          <div className="control-item">
+            <kbd>F</kbd>
+            <p>Toggle 3D drone flight / free-cam mode</p>
+          </div>
+          <div className="control-item">
+            <kbd>Space</kbd> / <kbd>C</kbd>
+            <p>Ascend / descend altitude in flight mode</p>
+          </div>
+          <div className="control-item">
+            <kbd>X</kbd>
+            <p>Capture high-res viewport screenshot PNG</p>
+          </div>
+          <div className="control-item">
+            <kbd>[</kbd> <kbd>]</kbd>
+            <p>Adjust camera Field of View (zoom in / wide angle)</p>
+          </div>
+          <div className="control-item">
+            <kbd>U</kbd>
+            <p>Audio & haptics control center</p>
           </div>
           <div className="control-item">
             <kbd>T</kbd>

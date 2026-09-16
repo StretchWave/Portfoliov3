@@ -4,7 +4,23 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { Vector3 } from "three";
 
-const movementKeys = new Set(["w", "a", "s", "d", "arrowup", "arrowleft", "arrowdown", "arrowright"]);
+import { touchMovement } from "./touch-controls-state";
+import { cameraSettings } from "../camera/camera-settings";
+
+const movementKeys = new Set([
+  "w",
+  "a",
+  "s",
+  "d",
+  "arrowup",
+  "arrowleft",
+  "arrowdown",
+  "arrowright",
+  " ",
+  "space",
+  "c",
+  "shift",
+]);
 const up = new Vector3(0, 1, 0);
 const forward = new Vector3();
 const right = new Vector3();
@@ -118,22 +134,73 @@ export function ExplorerController({
   }, [camera]);
 
   useFrame((_, delta) => {
+    const isFlight = cameraSettings.isFlightMode();
+
     const keys = pressedKeys.current;
-    const forwardInput = Number(keys.has("w") || keys.has("arrowup")) - Number(keys.has("s") || keys.has("arrowdown"));
-    const sideInput = Number(keys.has("d") || keys.has("arrowright")) - Number(keys.has("a") || keys.has("arrowleft"));
-    if (!forwardInput && !sideInput) return;
+    const keyForward = Number(keys.has("w") || keys.has("arrowup")) - Number(keys.has("s") || keys.has("arrowdown"));
+    const keySide = Number(keys.has("d") || keys.has("arrowright")) - Number(keys.has("a") || keys.has("arrowleft"));
+    const keyAscend = Number(keys.has(" ") || keys.has("space"));
+    const keyDescend = Number(keys.has("c") || keys.has("shift"));
 
-    camera.getWorldDirection(forward);
-    forward.y = 0;
-    forward.normalize();
-    right.crossVectors(forward, up).normalize();
-    movement.copy(forward).multiplyScalar(forwardInput).addScaledVector(right, sideInput).normalize();
-    camera.position.addScaledVector(movement, Math.min(delta, 0.05) * 4.2);
+    const touchForward = touchMovement.active ? touchMovement.y : 0;
+    const touchSide = touchMovement.active ? touchMovement.x : 0;
 
-    // The area owns its walkable footprint; this is not a collision system.
-    camera.position.x = Math.max(bounds.minX, Math.min(bounds.maxX, camera.position.x));
-    camera.position.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, camera.position.z));
-    camera.position.y = 1.7;
+    let forwardInput = keyForward + touchForward;
+    let sideInput = keySide + touchSide;
+    const verticalInput = keyAscend - keyDescend;
+
+    const lenSq = forwardInput * forwardInput + sideInput * sideInput;
+    const hasMoveInput = lenSq > 0.0001;
+    const hasVertInput = Math.abs(verticalInput) > 0.0001;
+
+    if (!hasMoveInput && !hasVertInput) {
+      cameraSettings.setAltitude(camera.position.y);
+      return;
+    }
+
+    if (hasMoveInput) {
+      if (lenSq > 1) {
+        const invLen = 1 / Math.sqrt(lenSq);
+        forwardInput *= invLen;
+        sideInput *= invLen;
+      }
+
+      camera.getWorldDirection(forward);
+      if (!isFlight) {
+        forward.y = 0;
+        forward.normalize();
+      }
+      right.crossVectors(forward, up).normalize();
+      movement.copy(forward).multiplyScalar(forwardInput).addScaledVector(right, sideInput);
+      if (!isFlight) {
+        movement.normalize();
+      }
+      const speed = isFlight ? 6.4 : 4.2;
+      camera.position.addScaledVector(movement, Math.min(delta, 0.05) * speed);
+    }
+
+    if (isFlight) {
+      if (hasVertInput) {
+        camera.position.y += verticalInput * Math.min(delta, 0.05) * 5.2;
+      }
+      // Altitude bounds in flight mode: 0.4m to 25.0m
+      camera.position.y = Math.max(0.4, Math.min(25.0, camera.position.y));
+
+      // Expanded flight boundary (2.5x base)
+      const flightMinX = bounds.minX * 2.5;
+      const flightMaxX = bounds.maxX * 2.5;
+      const flightMinZ = bounds.minZ * 2.5;
+      const flightMaxZ = bounds.maxZ * 2.5;
+      camera.position.x = Math.max(flightMinX, Math.min(flightMaxX, camera.position.x));
+      camera.position.z = Math.max(flightMinZ, Math.min(flightMaxZ, camera.position.z));
+    } else {
+      // Ground walking bounds
+      camera.position.x = Math.max(bounds.minX, Math.min(bounds.maxX, camera.position.x));
+      camera.position.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, camera.position.z));
+      camera.position.y = 1.7;
+    }
+
+    cameraSettings.setAltitude(camera.position.y);
   });
 
   return null;

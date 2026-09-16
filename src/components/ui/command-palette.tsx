@@ -101,6 +101,22 @@ export function CommandPalette({ onTravelToArea }: CommandPaletteProps) {
         keywords: ["bio", "biography", "directions", "background"],
       },
       {
+        id: "page-sandbox",
+        category: "Pages",
+        title: "Engineering Algorithm Sandboxes",
+        subtitle: "Live DSP audio filter visualizer, hydrological runoff, and combat FSM",
+        action: () => router.push("/sandbox"),
+        keywords: ["sandbox", "dsp", "audio", "filter", "hydrology", "runoff", "combat", "fsm", "algorithm"],
+      },
+      {
+        id: "page-resume",
+        category: "Pages",
+        title: "Engineering Dossier & Resume",
+        subtitle: "2-page print-optimized resume, JSON Resume export, and ATS plaintext",
+        action: () => router.push("/resume"),
+        keywords: ["resume", "cv", "dossier", "print", "pdf", "ats", "json", "education"],
+      },
+      {
         id: "page-interactive",
         category: "Pages",
         title: "Interactive 3D WebGL Hub",

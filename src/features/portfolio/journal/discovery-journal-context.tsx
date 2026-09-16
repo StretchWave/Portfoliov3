@@ -137,7 +137,7 @@ export function DiscoveryJournalProvider({ children }: { children: ReactNode }) 
     }
   }, []);
 
-  // Listen for 'J' key to toggle journal
+  // Listen for 'J' key to toggle journal and Escape to close
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (
@@ -150,12 +150,14 @@ export function DiscoveryJournalProvider({ children }: { children: ReactNode }) 
       if (e.key.toLowerCase() === "j") {
         e.preventDefault();
         setIsJournalOpen((prev) => !prev);
+      } else if (e.key === "Escape" && isJournalOpen) {
+        setIsJournalOpen(false);
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isJournalOpen]);
 
   const recordDiscovery = useCallback((id: string, title?: string, category?: string) => {
     setDiscoveredIds((prev) => {

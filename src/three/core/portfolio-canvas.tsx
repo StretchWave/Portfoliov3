@@ -9,6 +9,8 @@ import { DiagnosticsCollector } from "@/three/performance/diagnostics-collector"
 import { usePerformance } from "@/three/performance/performance-context";
 import { WorldAreas } from "@/three/world/world-areas";
 import { DirectorTourController } from "@/three/player/director-tour-controller";
+import { SpatialAudioListener } from "@/three/audio/spatial-audio-listener";
+import { CameraController } from "@/three/camera/camera-controller";
 
 interface PortfolioCanvasProps {
   isTourActive?: boolean;
@@ -26,10 +28,12 @@ export function PortfolioCanvas({ isTourActive = false, onTourDeactivate = () =>
       className="portfolio-canvas"
       camera={{ position: [0, 1.7, 7.5], fov: 60, near: 0.1, far: 60 }}
       dpr={[1, dpr]}
-      gl={BASELINE_RENDERER_OPTIONS}
+      gl={{ ...BASELINE_RENDERER_OPTIONS, preserveDrawingBuffer: true }}
       shadows={shadowsEnabled ? { type: PCFShadowMap } : false}
     >
       <DiagnosticsCollector />
+      <CameraController />
+      <SpatialAudioListener />
       <DirectorTourController isActive={isTourActive} onDeactivate={onTourDeactivate} />
       {/* The Suspense boundary is the loading boundary for mounted world areas. */}
       <Suspense fallback={null}>

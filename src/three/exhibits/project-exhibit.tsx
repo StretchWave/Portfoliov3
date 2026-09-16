@@ -1,6 +1,5 @@
 "use client";
 
-import { Html } from "@react-three/drei";
 import { useMemo } from "react";
 
 import type { ExhibitPresentation } from "@/types/portfolio";
@@ -8,6 +7,7 @@ import { useInteraction } from "@/three/interaction/interaction-provider";
 import type { WorldPosition } from "@/three/interaction/interaction-types";
 import { useInteractable } from "@/three/interaction/use-interactable";
 import { getEnvironmentMaterials } from "@/three/world/environment/environment-materials";
+import { HolographicDisplay } from "./holographic-display";
 
 interface ProjectExhibitProps {
   projectId: string;
@@ -32,7 +32,7 @@ export function ProjectExhibit({
   accent,
   interactionRange,
 }: ProjectExhibitProps) {
-  const { requestInteraction } = useInteraction();
+  const { focused, requestInteraction } = useInteraction();
   const materials = getEnvironmentMaterials();
   const definition = useMemo(() => ({
     id: `project-exhibit:${projectId}`,
@@ -86,12 +86,12 @@ export function ProjectExhibit({
           ))}
         </>
       ) : null}
-      <Html center position={[0, 2.62, 0]} distanceFactor={9} sprite>
-        <div className="exhibit-label" style={{ borderColor: accent }}>
-          <span style={{ color: accent }}>{presentation.replaceAll("-", " ")}</span>
-          <strong>{projectName}</strong>
-        </div>
-      </Html>
+      <HolographicDisplay
+        label={projectName}
+        category={presentation}
+        accent={accent}
+        isFocused={focused?.id === definition.id}
+      />
       <pointLight color={accent} intensity={6} distance={4.5} position={[0, 2.1, 0.55]} />
     </group>
   );

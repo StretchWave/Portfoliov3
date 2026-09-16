@@ -18,6 +18,11 @@ import { ControlsHelpModal } from "./controls-help-modal";
 import { PortfolioCanvas } from "../core/portfolio-canvas";
 import { ProjectInformationPanel } from "./project-information-panel";
 import { SpatialRadarHud } from "@/three/interaction/spatial-radar-hud";
+import { VirtualJoystick } from "../player/virtual-joystick";
+import { TouchActionButton } from "../interaction/touch-action-button";
+import { AudioHapticsModal } from "@/components/ui/audio-haptics-modal";
+import { cameraSettings } from "@/three/camera/camera-settings";
+import { captureViewportScreenshot } from "@/three/capture/viewport-capture";
 
 export interface InteractiveExperienceProps {
   onExit: () => void;
@@ -28,10 +33,30 @@ function ExperienceInner({ onExit }: InteractiveExperienceProps) {
   const [travelMenuOpen, setTravelMenuOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(() => soundManager.isEnabled());
   const [isTourActive, setIsTourActive] = useState(false);
+  const [isAudioModalOpen, setIsAudioModalOpen] = useState(false);
+  const [isFlightMode, setIsFlightMode] = useState(() => cameraSettings.isFlightMode());
+  const [altitude, setAltitude] = useState(() => cameraSettings.getAltitude());
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   const { currentArea, areaInfo, isTransitioning, travelToArea } = useWorldArea();
   const { setShowDiagnostics, setShowHelp } = usePerformance();
   const { recordDiscovery, setIsJournalOpen, discoveredIds, totalMilestones } = useDiscoveryJournal();
   const selectedProject = selectedProjectId ? getProjectById(selectedProjectId) : undefined;
+
+  // Subscribe to camera settings (flight mode & altitude)
+  useEffect(() => {
+    return cameraSettings.subscribe(() => {
+      setIsFlightMode(cameraSettings.isFlightMode());
+      setAltitude(cameraSettings.getAltitude());
+    });
+  }, []);
+
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((curr) => (curr === msg ? null : curr));
+    }, 2800);
+  }, []);
 
   const toggleSound = useCallback(() => {
     const next = !soundEnabled;
@@ -43,30 +68,78 @@ function ExperienceInner({ onExit }: InteractiveExperienceProps) {
     setIsTourActive((prev) => !prev);
   }, []);
 
-  // Record area discovery
+  const toggleFlight = useCallback(() => {
+    const next = cameraSettings.toggleFlightMode();
+    soundManager.playFlightEngage(next);
+    showToast(
+      next
+        ? "🛸 Drone Flight Mode Active (Space to Ascend, C to Descend)"
+        : "🚶 Ground Walking Mode Active"
+    );
+    if (next) {
+      recordDiscovery("flight-matrix", "Drone Flight Matrix", "District");
+    }
+  }, [recordDiscovery, showToast]);
+
+  const handleSnapshot = useCallback(async () => {
+    showToast("📸 Capturing High-Res Viewport...");
+    const ok = await captureViewportScreenshot(areaInfo.name);
+    if (ok) {
+      showToast("📸 Viewport Saved as PNG!");
+      recordDiscovery("snapshot-captured", "Visual Archive Recorded", "District");
+    }
+  }, [areaInfo.name, recordDiscovery, showToast]);
+
+  // Record area discovery and set ambient district soundscape
   useEffect(() => {
     recordDiscovery(`district-${currentArea}`, areaInfo.name, "District");
+    soundManager.setAmbientDistrict(currentArea);
   }, [currentArea, areaInfo.name, recordDiscovery]);
 
-  // Tour Hotkey: T
+  useEffect(() => {
+    return () => {
+      soundManager.stopAmbient();
+    };
+  }, []);
+
+  // Hotkeys: T for tour, U for audio, F for flight, X for screenshot, [ / ] for FOV
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (
         e.target instanceof HTMLElement &&
         (e.target.closest("input, textarea, select") ||
-          e.target.closest(".command-backdrop"))
+          e.target.closest(".command-backdrop") ||
+          e.target.closest(".audio-haptics-modal") ||
+          e.target.closest(".comparison-modal"))
       ) {
         return;
       }
       if (e.key.toLowerCase() === "t") {
         e.preventDefault();
         toggleTour();
+      } else if (e.key.toLowerCase() === "u") {
+        e.preventDefault();
+        setIsAudioModalOpen((prev) => !prev);
+      } else if (e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        toggleFlight();
+      } else if (e.key.toLowerCase() === "x") {
+        e.preventDefault();
+        handleSnapshot();
+      } else if (e.key === "[" || e.key === "{") {
+        e.preventDefault();
+        cameraSettings.adjustFov(-5);
+        showToast(`FOV: ${cameraSettings.getFov()}° (Zoomed In)`);
+      } else if (e.key === "]" || e.key === "}") {
+        e.preventDefault();
+        cameraSettings.adjustFov(5);
+        showToast(`FOV: ${cameraSettings.getFov()}° (Wide View)`);
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggleTour]);
+  }, [toggleTour, toggleFlight, handleSnapshot, showToast]);
 
   const handleInteraction = useCallback((event: InteractionEvent) => {
     if (event.kind === "open-project") {
@@ -164,11 +237,38 @@ function ExperienceInner({ onExit }: InteractiveExperienceProps) {
 
             <button
               type="button"
+              className={`button button--compact ${isFlightMode ? "button--flight-active" : ""}`}
+              onClick={toggleFlight}
+              title="Toggle Drone Flight / Free-Cam Mode (F)"
+            >
+              {isFlightMode ? "🛸 Flying (F)" : "🛸 Flight (F)"}
+            </button>
+
+            <button
+              type="button"
+              className="button button--compact"
+              onClick={handleSnapshot}
+              title="Capture High-Res Viewport Screenshot (X)"
+            >
+              📸 Snap (X)
+            </button>
+
+            <button
+              type="button"
               className={`button button--compact ${soundEnabled ? "button--sound-active" : ""}`}
               onClick={toggleSound}
               title="Toggle Procedural Audio Effects"
             >
               {soundEnabled ? "🔊 Sound ON" : "🔇 Sound OFF"}
+            </button>
+
+            <button
+              type="button"
+              className="button button--compact"
+              onClick={() => setIsAudioModalOpen(true)}
+              title="Open Audio & Haptics Control Center (U)"
+            >
+              ⚙ Audio (U)
             </button>
 
             <button
@@ -189,7 +289,13 @@ function ExperienceInner({ onExit }: InteractiveExperienceProps) {
               Help (?)
             </button>
 
-            <button type="button" onClick={onExit}>
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.stopAmbient();
+                onExit();
+              }}
+            >
               Exit 3D hub
             </button>
           </div>
@@ -201,10 +307,37 @@ function ExperienceInner({ onExit }: InteractiveExperienceProps) {
           aria-hidden="true"
         />
 
+        {/* Drone Flight Mode Telemetry Banner */}
+        {isFlightMode ? (
+          <div className="flight-hud-banner" role="status" aria-live="polite">
+            <span className="flight-hud__badge">DRONE FLIGHT</span>
+            <span className="flight-hud__alt">ALT: {altitude.toFixed(1)}m</span>
+            <span className="flight-hud__controls">
+              SPACE Ascend &bull; C/SHIFT Descend &bull; WASD Vector &bull; F Land
+            </span>
+          </div>
+        ) : null}
+
+        {/* Dynamic Studio & Flight Notification Toast */}
+        {toastMessage ? (
+          <div className="experience-toast" role="status">
+            {toastMessage}
+          </div>
+        ) : null}
+
         <InteractionHud />
         <SpatialRadarHud />
+        <VirtualJoystick />
+        <TouchActionButton />
         <PerformanceHud />
         <ControlsHelpModal />
+        <AudioHapticsModal
+          isOpen={isAudioModalOpen}
+          onClose={() => {
+            setIsAudioModalOpen(false);
+            setSoundEnabled(soundManager.isEnabled());
+          }}
+        />
         {selectedProject ? (
           <ProjectInformationPanel
             project={selectedProject}

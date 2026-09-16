@@ -88,6 +88,8 @@ async function main() {
     ["about", "/about"],
     ["projects", "/projects"],
     ["skills", "/skills"],
+    ["sandbox", "/sandbox"],
+    ["resume", "/resume"],
     ["project-detail", "/projects/lyrune"],
     ["project-detail-sonara", "/projects/sonara"],
     ["project-detail-kerala", "/projects/kerala-flood-risk-platform"],
@@ -112,6 +114,149 @@ async function main() {
     summary.push({ name, ...info });
   }
 
+  // --- Interactive Skills Matrix & Project Filter validations -----------
+  await send("Page.navigate", { url: baseUrl + "/skills" });
+  await delay(1200);
+  const skillsValidation = await evaluate(`(() => {
+    const matrix = document.querySelector(".skills-matrix-container");
+    const chips = Array.from(document.querySelectorAll(".skill-chip"));
+    const detailHeader = document.querySelector(".skills-matrix__detail-header h3");
+    return {
+      matrixPresent: Boolean(matrix),
+      chipsCount: chips.length,
+      activeSkill: detailHeader?.textContent ?? null,
+    };
+  })()`);
+
+  await send("Page.navigate", { url: baseUrl + "/projects" });
+  await delay(1200);
+  const compBtnPresent = await evaluate(`Boolean(document.querySelector(".comparison-trigger-btn"))`);
+  let modalOpened = false;
+  let radarPresent = false;
+  let compCardsCount = 0;
+
+  if (compBtnPresent) {
+    await evaluate(`document.querySelector(".comparison-trigger-btn")?.click()`);
+    await delay(500);
+    const modalCheck = await evaluate(`(() => {
+      const modal = document.querySelector(".comparison-modal");
+      return {
+        modalOpened: Boolean(modal),
+        radarPresent: Boolean(document.querySelector(".radar-chart-container")),
+        compCardsCount: Array.from(document.querySelectorAll(".comparison-project-card")).length,
+      };
+    })()`);
+    modalOpened = modalCheck.modalOpened;
+    radarPresent = modalCheck.radarPresent;
+    compCardsCount = modalCheck.compCardsCount;
+    await evaluate(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
+    await delay(400);
+  }
+
+  const projectsValidation = await evaluate(`(() => {
+    const root = document.querySelector(".project-explorer-root");
+    const priorityChips = Array.from(document.querySelectorAll(".priority-chip"));
+    const cards = Array.from(document.querySelectorAll(".project-card"));
+
+    return {
+      rootPresent: Boolean(root),
+      priorityOptions: priorityChips.length,
+      cardsCount: cards.length,
+      diffEngineButtonPresent: ${compBtnPresent},
+      modalOpened: ${modalOpened},
+      radarPresent: ${radarPresent},
+      compCardsCount: ${compCardsCount},
+    };
+  })()`);
+
+  await send("Page.navigate", { url: baseUrl + "/about" });
+  await delay(1200);
+  const aboutValidation = await evaluate(`(() => {
+    const graph = document.querySelector(".topology-graph-container");
+    const nodes = Array.from(document.querySelectorAll(".topology-node-group"));
+    const detail = document.querySelector(".topology-detail-card h3");
+    return {
+      graphPresent: Boolean(graph),
+      nodesCount: nodes.length,
+      initialActiveNode: detail?.textContent ?? null,
+    };
+  })()`);
+
+  // --- Phase 21: Architectural Core Memory & Code Snippet Inspector --------
+  await send("Page.navigate", { url: baseUrl + "/projects/sonara" });
+  await delay(1200);
+  const codeInspectorValidation = await evaluate(`(() => {
+    const inspector = document.querySelector(".code-inspector");
+    const tabs = Array.from(document.querySelectorAll(".code-tab-btn")).map((b) => b.textContent.trim());
+    const badge = document.querySelector(".code-inspector__badge")?.textContent ?? null;
+    const filepath = document.querySelector(".code-inspector__filepath")?.textContent ?? null;
+    const complexity = document.querySelector(".code-inspector__complexity")?.textContent ?? null;
+    const lines = Array.from(document.querySelectorAll(".code-inspector .code-line"));
+    const copyBtn = document.querySelector(".code-copy-btn");
+    return {
+      inspectorPresent: Boolean(inspector),
+      tabsCount: tabs.length,
+      tabs,
+      badge,
+      filepath,
+      complexity,
+      linesCount: lines.length,
+      copyBtnPresent: Boolean(copyBtn),
+    };
+  })()`);
+
+  // --- Phase 22: Live Engineering Algorithm Sandboxes (/sandbox) -----------
+  await send("Page.navigate", { url: baseUrl + "/sandbox" });
+  await delay(1200);
+  const hubPresent = await evaluate(`Boolean(document.querySelector(".sandbox-hub-root"))`);
+  const tabsCount = await evaluate(`document.querySelectorAll(".sandbox-tab-btn").length`);
+  const dspGraphPresent = await evaluate(`Boolean(document.querySelector(".dsp-graph"))`);
+
+  // Click Hydrology tab and wait for render
+  await evaluate(`document.querySelectorAll(".sandbox-tab-btn")[1]?.click()`);
+  await delay(600);
+  const hydrologyCanvasPresent = await evaluate(`Boolean(document.querySelector(".hydrology-canvas"))`);
+
+  // Click Combat FSM tab and wait for render
+  await evaluate(`document.querySelectorAll(".sandbox-tab-btn")[2]?.click()`);
+  await delay(600);
+  const combatTimelinePresent = await evaluate(`Boolean(document.querySelector(".frame-timeline-track"))`);
+
+  // Click back to DSP tab
+  await evaluate(`document.querySelectorAll(".sandbox-tab-btn")[0]?.click()`);
+  await delay(400);
+
+  const sandboxValidation = {
+    hubPresent,
+    tabsCount,
+    dspGraphPresent,
+    hydrologyCanvasPresent,
+    combatTimelinePresent,
+  };
+
+  // --- Phase 23: Machine-Readable Engineering Dossier (/resume) ------------
+  await send("Page.navigate", { url: baseUrl + "/resume" });
+  await delay(1200);
+  const resumeValidation = await evaluate(`(() => {
+    const toolbar = document.querySelector(".resume-toolbar");
+    const printBtn = document.querySelector(".resume-tool-btn--primary");
+    const jsonBtn = Array.from(document.querySelectorAll(".resume-tool-btn")).find((b) => b.textContent.includes("JSON"));
+    const copyBtn = Array.from(document.querySelectorAll(".resume-tool-btn")).find((b) => b.textContent.includes("Plaintext"));
+    const name = document.querySelector(".resume-name")?.textContent ?? null;
+    const projects = Array.from(document.querySelectorAll(".resume-project-item"));
+    const focusChips = Array.from(document.querySelectorAll(".resume-filter-chip"));
+
+    return {
+      toolbarPresent: Boolean(toolbar),
+      printBtnPresent: Boolean(printBtn),
+      exportJsonBtnPresent: Boolean(jsonBtn),
+      copyPlaintextBtnPresent: Boolean(copyBtn),
+      candidateName: name,
+      projectsCount: projects.length,
+      focusChipsCount: focusChips.length,
+    };
+  })()`);
+
   // --- Interactive launch flow --------------------------------------------
   await send("Page.navigate", { url: baseUrl + "/interactive" });
   await delay(2000);
@@ -135,7 +280,16 @@ async function main() {
       canvasSize: canvas ? [canvas.width, canvas.height] : null,
       webgl: Boolean(gl),
       contextLost: gl ? gl.isContextLost() : null,
+      flightButtonPresent: Boolean(document.querySelector(".experience-topbar")?.textContent?.includes("Flight")),
+      snapButtonPresent: Boolean(document.querySelector(".experience-topbar")?.textContent?.includes("Snap")),
     };
+  })()`);
+
+  const flightTest = await evaluate(`(() => {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "f", bubbles: true }));
+    const banner = document.querySelector(".flight-hud-banner");
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "f", bubbles: true }));
+    return { bannerPresent: Boolean(banner) };
   })()`);
 
   const shot = await send("Page.captureScreenshot", { format: "png" });
@@ -204,12 +358,37 @@ async function main() {
   await delay(800);
   const panel = await evaluate(`(() => {
     const p = document.querySelector(".project-panel");
+    const tabBar = document.querySelector(".panel-tab-bar");
+    const tabs = Array.from(document.querySelectorAll(".panel-tab")).map((t) => t.textContent.trim());
     return {
       open: Boolean(p),
       title: p?.querySelector("h2")?.textContent ?? null,
+      tabBarPresent: Boolean(tabBar),
+      tabs,
       links: Array.from(p?.querySelectorAll("a") ?? []).map((a) => ({ text: a.textContent.trim(), href: a.getAttribute("href") })),
     };
   })()`);
+
+  let terminalValidation = null;
+  if (panel.open && panel.tabBarPresent) {
+    await evaluate(`(() => {
+      const codeTab = Array.from(document.querySelectorAll(".panel-tab")).find((t) => t.textContent.includes("Code"));
+      codeTab?.click();
+    })()`);
+    await delay(500);
+    terminalValidation = await evaluate(`(() => {
+      const terminal = document.querySelector(".panel-terminal-view");
+      const inspector = document.querySelector(".code-inspector--terminal");
+      const lines = Array.from(document.querySelectorAll(".code-inspector--terminal .code-line"));
+      const filepath = document.querySelector(".code-inspector--terminal .code-inspector__filepath")?.textContent ?? null;
+      return {
+        terminalPresent: Boolean(terminal),
+        inspectorPresent: Boolean(inspector),
+        linesCount: lines.length,
+        filepath,
+      };
+    })()`);
+  }
 
   if (panel.open) {
     await evaluate(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
@@ -222,7 +401,7 @@ async function main() {
   ws.close();
   chrome.kill();
 
-  console.log(JSON.stringify({ before, after, fps, speed, walkLog, camLog, focusedHud, pressedE, panel, panelStillOpen, summary }, null, 2));
+  console.log(JSON.stringify({ before, after, fps, speed, walkLog, camLog, focusedHud, pressedE, panel, terminalValidation, panelStillOpen, skillsValidation, projectsValidation, aboutValidation, codeInspectorValidation, sandboxValidation, resumeValidation, summary }, null, 2));
 }
 
 main().catch((error) => {

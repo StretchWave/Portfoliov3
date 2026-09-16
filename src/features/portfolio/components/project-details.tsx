@@ -1,6 +1,7 @@
 import type { PortfolioProject } from "@/types/portfolio";
 
 import { ProjectDetailArchitecture } from "./project-detail-architecture";
+import { ProjectDetailCode } from "./project-detail-code";
 import { ProjectDetailFeatures } from "./project-detail-features";
 import { ProjectDetailHero } from "./project-detail-hero";
 import { ProjectDetailLinks } from "./project-detail-links";
@@ -23,6 +24,7 @@ export function ProjectDetails({ project }: { project: PortfolioProject }) {
       <ProjectDetailTechnology project={project} />
       <ProjectDetailSkills project={project} />
       <ProjectDetailArchitecture project={project} />
+      <ProjectDetailCode project={project} />
       <ProjectDetailLinks project={project} />
       <ProjectDetailRelated project={project} />
       <ProjectInteractiveCta project={project} />

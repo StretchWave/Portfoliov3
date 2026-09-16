@@ -2,11 +2,16 @@
 
 import { useEffect, useState, useRef } from "react";
 import { soundManager } from "@/lib/audio-synthesizer";
+import { hapticManager } from "@/lib/haptic-feedback";
 import { useDiscoveryJournal } from "@/features/portfolio/journal/discovery-journal-context";
 
 type Stance = "strength" | "agility" | "endurance";
 
-export function CombatTimingTrainerDemo() {
+interface CombatTrainerProps {
+  onSuccess?: () => void;
+}
+
+export function CombatTimingTrainerDemo({ onSuccess }: CombatTrainerProps = {}) {
   const { recordDiscovery } = useDiscoveryJournal();
   const [stance, setStance] = useState<Stance>("strength");
   const [stamina, setStamina] = useState(100);
@@ -44,6 +49,7 @@ export function CombatTimingTrainerDemo() {
     if (stamina < 20) {
       setFeedback({ text: "Exhausted! Not enough stamina.", success: false });
       soundManager.playCombat("hit");
+      hapticManager.trigger("warning");
       return;
     }
 
@@ -51,11 +57,14 @@ export function CombatTimingTrainerDemo() {
       if (inSweetSpot && (stance === "strength" || incomingMeter >= 82)) {
         setFeedback({ text: "⚡ PERFECT PARRY! Counter-attack window open!", success: true });
         soundManager.playCombat("parry");
+        hapticManager.trigger("success");
         setStreak((s) => s + 1);
         setStamina((s) => Math.max(0, s - 10));
+        onSuccess?.();
       } else {
         setFeedback({ text: "Parry missed! Window too narrow.", success: false });
         soundManager.playCombat("hit");
+        hapticManager.trigger("warning");
         setStreak(0);
         setStamina((s) => Math.max(0, s - 25));
       }
@@ -63,17 +72,21 @@ export function CombatTimingTrainerDemo() {
       if (incomingMeter >= 50 && incomingMeter <= 95) {
         setFeedback({ text: "💨 CLEAN DODGE! Evasive roll executed.", success: true });
         soundManager.playCombat("dodge");
+        hapticManager.trigger("medium");
         setStreak((s) => s + 1);
         setStamina((s) => Math.max(0, s - 15));
+        onSuccess?.();
       } else {
         setFeedback({ text: "Dodge mistimed! Clipped by swing.", success: false });
         soundManager.playCombat("hit");
+        hapticManager.trigger("warning");
         setStreak(0);
       }
     } else if (action === "block") {
       const staminaCost = stance === "endurance" ? 10 : 25;
       setFeedback({ text: `🛡️ BLOCKED! Absorbed hit (-${staminaCost} Stamina)`, success: true });
       soundManager.playCombat("block");
+      hapticManager.trigger("medium");
       setStamina((s) => Math.max(0, s - staminaCost));
     }
 

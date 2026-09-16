@@ -56,17 +56,35 @@ export function InteractionProvider({ children, onInteraction }: InteractionProv
   const updateFocusFromPosition = useCallback((position: { x: number; y: number; z: number }, yaw = 0) => {
     playerTransformRef.current = { x: position.x, y: position.y, z: position.z, yaw };
     let nearestId: string | null = null;
-    let nearestDistance = Number.POSITIVE_INFINITY;
+    let nearestScore = Number.POSITIVE_INFINITY;
+
+    // Camera forward vector in XZ plane
+    const camDirX = -Math.sin(yaw);
+    const camDirZ = -Math.cos(yaw);
 
     for (const target of targets.current.values()) {
-      const distance = squaredDistance(position, target.position);
-      if (distance <= target.range * target.range && distance < nearestDistance) {
-        nearestDistance = distance;
-        nearestId = target.id;
+      const dx = target.position[0] - position.x;
+      const dy = target.position[1] - position.y;
+      const dz = target.position[2] - position.z;
+      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+      if (distance <= target.range) {
+        const distXZ = Math.hypot(dx, dz);
+        const forwardDot = distXZ > 0.001 ? (dx * camDirX + dz * camDirZ) / distXZ : 1;
+
+        // If the target is behind the player, ignore unless in immediate proximity (< 1.0m)
+        if (forwardDot >= -0.1 || distance < 1.0) {
+          const alignmentMultiplier = forwardDot < 0 ? 1.5 : (1.2 - forwardDot * 0.4);
+          const score = distance * alignmentMultiplier;
+          if (score < nearestScore) {
+            nearestScore = score;
+            nearestId = target.id;
+          }
+        }
       }
     }
 
-    setFocusedId((current) => current === nearestId ? current : nearestId);
+    setFocusedId((current) => (current === nearestId ? current : nearestId));
   }, []);
 
   const requestInteraction = useCallback((targetId?: string) => {

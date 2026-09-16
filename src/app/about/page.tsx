@@ -5,6 +5,8 @@ import { PageShell } from "@/components/layout/page-shell";
 import { profile } from "@/data/profile";
 import { getProjectsByCategory } from "@/features/portfolio/project-registry";
 
+import { SystemsTopologyGraph } from "@/features/portfolio/components/systems-topology-graph";
+
 export const metadata: Metadata = { title: "About" };
 
 export default function AboutPage() {
@@ -30,6 +32,16 @@ export default function AboutPage() {
               </article>
             ))}
           </div>
+        </section>
+
+        <section className="about-topology" aria-labelledby="about-topology-heading">
+          <p className="eyebrow">SYSTEMS ARCHITECTURE</p>
+          <h2 id="about-topology-heading">Ecosystem Topology & Data Pipelines</h2>
+          <p className="topology-intro-text">
+            An interactive topological model of software, intelligent, and interactive systems.
+            Select any system node to inspect its architectural layers, connected data pipelines, and verified implementation records.
+          </p>
+          <SystemsTopologyGraph />
         </section>
 
         <section className="about-game-direction" aria-labelledby="game-direction-heading">

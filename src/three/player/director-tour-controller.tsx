@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Vector3 } from "three";
 import { useWorldArea } from "../world/area-context";
 import type { WorldAreaId } from "@/types/portfolio";
+import { touchMovement } from "./touch-controls-state";
 
 export interface TourWaypoint {
   pos: [number, number, number];
@@ -44,13 +45,15 @@ const currentLook = new Vector3();
 const targetPos = new Vector3();
 const targetLook = new Vector3();
 
+export interface DirectorTourControllerProps {
+  isActive: boolean;
+  onDeactivate: () => void;
+}
+
 export function DirectorTourController({
   isActive,
   onDeactivate,
-}: {
-  isActive: boolean;
-  onDeactivate: () => void;
-}) {
+}: DirectorTourControllerProps) {
   const { currentArea } = useWorldArea();
   const { camera } = useThree();
   const waypointIdx = useRef(0);
@@ -88,6 +91,11 @@ export function DirectorTourController({
 
   useFrame((_, delta) => {
     if (!isActive) return;
+
+    if (touchMovement.active) {
+      onDeactivate();
+      return;
+    }
 
     const wp = waypoints[waypointIdx.current];
     if (!wp) return;

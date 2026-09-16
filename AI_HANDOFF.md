@@ -376,6 +376,97 @@ Executed: `npm run typecheck` (pass, code 0), `npm run build` (pass, code 0), an
   - **Exploration Ranks & Progress**: Real-time progress bar and title progression (*Curious Explorer* → *Systems Investigator* → *Senior Architecture Auditor* → *Master Systems Architect*).
   - **Micro-Toast Notifications**: Non-intrusive floating cyber alerts (`✦ [CATEGORY] UNLOCKED`) with automated queuing.
   - **Zero-Three.js Bundle Integrity**: Discovery Journal context and UI operate entirely outside Three.js dependencies, preserving lightweight page loads on all conventional routes.
+- **Mobile Touch Controls & Virtual Joystick (Phase 12)**:
+  - **Virtual Movement Joystick**: Dual-ring glassmorphic thumbstick positioned on the bottom-left with normalized directional vector calculation and direct mutable state streaming into R3F `useFrame`, eliminating React re-renders for a 60 FPS mobile experience.
+  - **Touch-Swipe Camera Look**: Touch drag orbiting on the right side of the screen with pitch constraints.
+  - **Floating Touch Action Button (`[ ⬡ INTERACT ]`)**: Dynamic contextual action button appearing on the bottom-right when exhibits or portals are in range, displaying the exhibit title and allowing single-tap inspection without keyboard `E`.
+  - **Adaptive Interaction Telemetry**: `InteractionHud` dynamically toggles between keyboard instructions and touch prompts based on input device capability.
+- **Dynamic OpenGraph Social Image Generation & Blueprint Visuals (Phase 13)**:
+  - Next.js dynamic `ImageResponse` generating 1200×630 cards for the root page and all 9 individual project detail pages with custom branding, tech stacks, and live metrics.
+  - Decorative SVG architectural blueprint headers on all conventional project cards with system code badges (`SYS-LYRU`, `SYS-KERA`, etc.).
+- **Procedural Generative Ambient Soundscapes (Phase 14)**:
+  - 100% code-synthesized ambient audio per district via browser Web Audio API:
+    - *Central Hub*: Resonant Lydian chime drone.
+    - *Software Systems*: Deep sub-bass server hum and filtered forced-air noise modulation.
+    - *Intelligence Observatory*: Atmospheric oceanic/rain sub-bass resonance.
+    - *Creative Workshop*: Warm harmonic analog synthesizer pad.
+  - Smooth 1.2-second equal-power crossfading on portal travel, master volume persistence, and automatic muting on browser tab blur.
+- **Production Hardening, PWA & CI/CD Pipeline (Phase 15)**:
+  - Strict HTTP security headers in `next.config.ts` (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Permissions-Policy).
+  - Progressive Web App (PWA) manifest (`manifest.ts`) for mobile/desktop standalone installation.
+  - Automated GitHub Actions CI workflow (`.github/workflows/ci.yml`) validating TypeScript static typing and Turbopack production builds on every push and pull-request.
+- **Interactive Skills Matrix, Multi-Dimensional Project Explorer & Holographic Pedestals (Phase 16)**:
+  - **Interactive Skills-to-Project Matrix (`/skills`)**: Searchable, mode-filtered (`All`, `With Project Evidence`, `Core & Production`) matrix linking technical competencies directly to verified project case studies with instant telemetry breakdowns and zero Three.js bundle leakage.
+  - **Multi-Dimensional Project Explorer (`/projects`)**: Instant keyword search, priority chips (`Flagship`, `Featured`, `Supporting`, `Experiment`), multi-attribute sorting (`Priority`, `Alphabetical`, `Tech Stack Depth`), live result count telemetry, and one-click reset.
+  - **In-World Holographic Exhibit Pedestals**: Continuous vertical sine-wave bobbing (`2.62 + sin(t * 1.8) * 0.04`), radiant glowing backdrop aura, and proximity-aware focus states displaying interactive action cues (`[ ⬡ TAP / PRESS E ]`) as the user approaches each exhibit.
+- **Deep Scan & Quality Hardening Audit**:
+  - **Headless Chrome Multi-Route Audit**: 0 console errors, 0 console warnings, 0 missing image alts, 0 empty buttons, 0 empty links, and 0 horizontal overflows across all desktop routes and mobile viewports (375px).
+  - **Directional Proximity Focus (`interaction-provider.tsx`)**: Upgraded proximity detection with camera yaw directional vector scoring and rear-target culling, preventing portals and exhibits behind the player from stealing focus upon spawning into world districts.
+  - **Skills Matrix Filter Selection Fallback (`skills-matrix-explorer.tsx`)**: Dynamically falls back to the first match within active filters when a user searches or changes evidence mode, preventing stale unlisted selections.
+  - **Project Explorer Filter State (`project-filter.tsx`)**: Extended `hasActiveFilters` to recognize custom sort orders (`sortBy !== "priority"`), ensuring the reset button is always available when user preferences diverge from defaults.
+  - **Universal Escape Key Dismissal**: Added `Escape` key listeners to `DiscoveryJournalModal` and `ControlsHelpModal` matching `ProjectInformationPanel`, ensuring consistent keyboard accessibility across all overlay dialogs.
+  - **Clean Code Hygiene**: Re-organized root layout imports to adhere to strict ESM conventions.
+- **Spatial 3D Audio Sonification, Audio & Haptics Control Center & Interactive Pipeline Diagrams (Phase 18)**:
+  - **Spatial 3D Audio Sonification (`spatial-audio-listener.tsx`, `audio-synthesizer.ts`)**:
+    - Real-time 3D stereo audio panner tracking player/camera position $(X, Z)$ and yaw rotation relative to in-world exhibit coordinates.
+    - Inverse distance attenuation with soft acoustic horizons (skip beyond 24 units), dynamic stereo panning based on listener orientation angle, and profile-specific wave synthesis (`cybernetic` sawtooth, `harmonic` triangle, `crisp` sine).
+  - **Audio & Haptics Control Center Modal (`audio-haptics-modal.tsx`)**:
+    - Full-featured accessibility and audio control center accessible via top bar button or <kbd>U</kbd> hotkey.
+    - Master, Ambient, and Effects volume sliders with real-time Web Audio gain node binding and `localStorage` persistence.
+    - Spatial 3D Audio toggle, sound profile selector (*Cybernetic Core*, *Ambient Harmonic*, *Crisp Studio*), and interactive tactile test bench for mobile haptics and procedural audio preview.
+  - **Interactive Architectural Pipeline Diagram (`architectural-pipeline-diagram.tsx`)**:
+    - Replaces static lists on all project detail case studies (`/projects/[slug]`) with an interactive sequential pipeline architecture visualizer.
+    - Features stage categorization heuristics (*Ingestion / Source*, *Core Processing*, *Governance & Safety*, *State & Persistence*, *Egress / Interface*), directional SVG vector connectors with animated data pulse flow, active stage inspection with upstream/downstream dependency mapping, and dynamic sequential payload simulation mode with synchronized melodic audio feedback (`soundManager.playBlip()`).
+- **Systems Diff Engine: Cross-Project Architectural Trade-Off Matrix (Phase 19)**:
+  - **Systems Diff Engine Modal & Comparison Toolbar (`project-comparison-modal.tsx`, `project-filter.tsx`)**:
+    - Interactive comparison drawer mounted on `/projects` allowing visitors to compare 2 to 3 systems side-by-side.
+    - Quick comparison presets: *Desktop Performance & IPC* (Sonara vs Lyrune), *Governance & Bounded Execution* (RecoverAI vs Lucida-Sync), *Big Data vs Local-First Autonomy* (Kerala Flood Risk vs Neerad Store), and *The Flagship Triad* (Sonara, Lyrune, Kerala Flood Risk).
+    - Detailed breakdown comparing architecture paradigms, latency & frame budgets, state management strategies, failure modes, concurrency models, and key architectural trade-offs (what was chosen vs rejected and why).
+- **Drone Flight Free-Cam Mode, FOV Controls & Viewport Screenshot Capture (Phase 20)**:
+  - **Drone Flight Free-Cam Mode (`explorer-controller.tsx`, `camera-settings.ts`)**:
+    - Unconstrained 3D camera flight toggled via <kbd>F</kbd> key or topbar trigger (`🛸 Flight (F)`).
+    - 3D pitch-aware flight kinematics with ascending (<kbd>Space</kbd>) and descending (<kbd>C</kbd> / <kbd>Shift</kbd>) vertical controls, $2.5\times$ expanded horizontal exploration horizon, and altitude bounds ($0.4\text{m} - 25.0\text{m}$).
+    - Floating Flight HUD telemetry banner displaying real-time altitude ($Y$ meters) and flight key instructions.
+    - Procedural audio swoops in `AudioSynthesizer` upon engaging/disengaging flight mode.
+  - **Camera Field of View (FOV) Adjustments (`camera-controller.tsx`)**:
+    - Real-time viewport optics customization ($50^\circ - 105^\circ$) via <kbd>[</kbd> and <kbd>]</kbd> keyboard shortcuts with instant projection matrix updates and `localStorage` persistence.
+  - **High-Resolution Viewport Screenshot Capture Tool (`viewport-capture.ts`)**:
+    - One-click / <kbd>X</kbd> screenshot capture utility composite-rendering an offscreen canvas with a cyberpunk watermark (`◆ PROJECT ATLAS // [DISTRICT] // [TIMESTAMP]`).
+    - Mechanical dual-click shutter sound synthesis and automatic PNG download (`atlas-[district]-[timestamp].png`).
+- **Architectural Core Memory Terminals & In-World Code Snippet Inspector (Phase 21)**:
+  - **Typed Production Code Snippet Registry (`code-snippets-data.ts`)**:
+    - Statically typed repository of authentic production code excerpts across 8 engineering systems (Sonara, Lyrune, Kerala Flood Risk, RecoverAI, Lucida-Sync, Neerad Store, ScrollBrake, and Stance Combat PvP).
+    - Captures algorithmic complexity notations ($O(\log n)$, $O(1)$, $O(V+E)$), authentic filepaths, and technical architectural problem statements.
+  - **Zero-Dependency Cyberpunk Code Snippet Inspector (`project-code-inspector.tsx`)**:
+    - Pure React and CSS monospace viewer featuring syntax-inspired line numbers, file badges, time/space complexity chips, multi-snippet tabs, and one-click copy with tactile audio feedback.
+    - Zero external syntax highlighting bloat (no Prism/Highlight.js bundle penalties), ensuring instant render speed and zero layout shifts.
+  - **Case Study Integration (`project-detail-code.tsx`, `project-details.tsx`)**:
+    - "Core Abstractions & Code Architecture" section mounted on all conventional project detail pages (`/projects/[slug]`), keeping Three.js bundles strictly quarantined to `/interactive`.
+- **Live Engineering Algorithm Sandboxes (Phase 22)**:
+  - **Dedicated `/sandbox` Computational Test Bench**:
+    - Zero-dependency client-side interactive engineering algorithms running directly in browser TypeScript.
+  - **Biquad DSP Audio Filter Visualizer (`dsp-filter-sandbox.tsx`)**:
+    - Direct Form II Transposed IIR filter evaluating $H(z)$ transfer function over a $20\text{Hz}-20\text{kHz}$ logarithmic spectrum based on Robert Bristow-Johnson's Audio EQ Cookbook formulas.
+    - Dynamic SVG magnitude response curve with cutoff marker, resonance $Q$ factor, and live Web Audio pink noise pass-through audition (`[ 🔊 Audition ]`).
+  - **Hydrological DEM Runoff & Flood Simulator (`hydrology-runoff-sandbox.tsx`)**:
+    - $24 \times 24$ cellular automaton simulating rainfall precipitation, Horton infiltration, and hydraulic head gradient routing.
+    - Real-time shaded relief elevation heatmap with dynamic water depth overlay, elevation relief presets (Western Ghats River Valley, Highland Reservoir, Coastal Estuary, Alluvial Plain), and hydrograph volume metrics.
+  - **Deterministic Combat Action Finite State Machine Parser (`combat-fsm-sandbox.tsx`)**:
+    - Deterministic 60 FPS combat state machine modeling startup commitment windows, active hitbox generations, whiff recovery periods, invulnerability frames (I-frames), and frame advantage (+/- block advantage).
+    - Segmented frame timeline with moving needle, 2D wireframe fighter schematic with hitbox/hurtbox displays, and manual single-frame step scrubbers (`[ ⏯ Step +1f ]`).
+  - **Multi-Sandbox Hub Container (`sandbox-hub.tsx`, `app/sandbox/page.tsx`)**:
+    - Multi-tab navigation with acoustic clicks (`soundManager.playBlip()`) and system metadata.
+- **Machine-Readable Engineering Dossier Export & Print-Optimized Resume Engine (Phase 23)**:
+  - **Dedicated `/resume` Engineering Dossier Route (`app/resume/page.tsx`, `resume-view.tsx`)**:
+    - High-fidelity dual-page engineering resume layout backed by verified production projects and evidence-based skills.
+  - **JSON Resume Schema Exporter (`json-resume-data.ts`)**:
+    - Generates and downloads official JSON Resume schema format (`mohammed-mishal-resume.json`) for automated ATS parsing and indexing.
+    - Includes one-click ATS plaintext resume copy utility with acoustic confirmation.
+  - **Dynamic Focus Re-ranking**:
+    - Focus chips ("All Systems", "Desktop & Native", "Intelligent & Data", "Games & Web") dynamically prioritizing relevant project achievements.
+  - **Clean 2-Page `@media print` Stylesheet (`globals.css`)**:
+    - Strips all web navigation chrome, backgrounds, and glow effects on print dialog.
+    - Enforces high-contrast black & white typography and strict `break-inside: avoid;` rules, guaranteeing a clean 2-page printout or PDF export.
 - **Production & SEO**: Dynamic sitemap (`/sitemap.xml`), crawler policy (`/robots.txt`), OpenGraph meta tags, and Schema.org JSON-LD structured data.
 
 
