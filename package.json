@@ -16,13 +16,13 @@
     "next": "16.3.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "three": "0.183.2"
+    "three": "0.186.0"
   },
   "devDependencies": {
     "@types/node": "24.10.1",
     "@types/react": "19.2.10",
     "@types/react-dom": "19.2.3",
-    "@types/three": "0.183.1",
+    "@types/three": "0.186.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.4",
     "tsx": "^4.23.13",
