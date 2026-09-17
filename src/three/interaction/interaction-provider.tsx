@@ -1,9 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 
-import type { InteractionEvent, InteractableDefinition, WorldPosition } from "./interaction-types";
+import type { InteractionEvent, InteractableDefinition } from "./interaction-types";
 
 export interface PlayerTransform {
   x: number;
@@ -28,19 +28,15 @@ interface InteractionProviderProps {
   onInteraction: (event: InteractionEvent) => void;
 }
 
-function squaredDistance(position: { x: number; y: number; z: number }, target: WorldPosition): number {
-  const x = position.x - target[0];
-  const y = position.y - target[1];
-  const z = position.z - target[2];
-  return x * x + y * y + z * z;
-}
-
 export function InteractionProvider({ children, onInteraction }: InteractionProviderProps) {
   const targets = useRef(new Map<string, InteractableDefinition>());
   const playerTransformRef = useRef<PlayerTransform>({ x: 0, y: 1.7, z: 0, yaw: 0 });
   const onInteractionRef = useRef(onInteraction);
-  const [focusedId, setFocusedId] = useState<string | null>(null);
-  onInteractionRef.current = onInteraction;
+  const [focused, setFocused] = useState<InteractableDefinition | undefined>(undefined);
+
+  useEffect(() => {
+    onInteractionRef.current = onInteraction;
+  }, [onInteraction]);
 
   const getPlayerTransform = useCallback(() => playerTransformRef.current, []);
   const getTargets = useCallback(() => Array.from(targets.current.values()), []);
@@ -49,13 +45,13 @@ export function InteractionProvider({ children, onInteraction }: InteractionProv
     targets.current.set(target.id, target);
     return () => {
       targets.current.delete(target.id);
-      setFocusedId((current) => current === target.id ? null : current);
+      setFocused((current) => (current?.id === target.id ? undefined : current));
     };
   }, []);
 
   const updateFocusFromPosition = useCallback((position: { x: number; y: number; z: number }, yaw = 0) => {
     playerTransformRef.current = { x: position.x, y: position.y, z: position.z, yaw };
-    let nearestId: string | null = null;
+    let nearestTarget: InteractableDefinition | undefined = undefined;
     let nearestScore = Number.POSITIVE_INFINITY;
 
     // Camera forward vector in XZ plane
@@ -72,37 +68,41 @@ export function InteractionProvider({ children, onInteraction }: InteractionProv
         const distXZ = Math.hypot(dx, dz);
         const forwardDot = distXZ > 0.001 ? (dx * camDirX + dz * camDirZ) / distXZ : 1;
 
-        // If the target is behind the player, ignore unless in immediate proximity (< 1.0m)
-        if (forwardDot >= -0.1 || distance < 1.0) {
-          const alignmentMultiplier = forwardDot < 0 ? 1.5 : (1.2 - forwardDot * 0.4);
-          const score = distance * alignmentMultiplier;
-          if (score < nearestScore) {
-            nearestScore = score;
-            nearestId = target.id;
-          }
+        if (forwardDot < -0.2 && distance > 1.2) {
+          continue;
+        }
+
+        const score = distance * (1.6 - Math.max(-0.5, forwardDot) * 0.6);
+
+        if (score < nearestScore) {
+          nearestScore = score;
+          nearestTarget = target;
         }
       }
     }
 
-    setFocusedId((current) => (current === nearestId ? current : nearestId));
+    setFocused((prev) => {
+      if (prev?.id === nearestTarget?.id) return prev;
+      return nearestTarget;
+    });
   }, []);
 
   const requestInteraction = useCallback((targetId?: string) => {
-    const resolvedId = targetId ?? focusedId;
+    const resolvedId = targetId ?? focused?.id;
     if (!resolvedId) return;
 
     const target = targets.current.get(resolvedId);
     if (target) onInteractionRef.current(target.event);
-  }, [focusedId]);
+  }, [focused]);
 
   const value = useMemo<InteractionContextValue>(() => ({
-    focused: focusedId ? targets.current.get(focusedId) : undefined,
+    focused,
     register,
     updateFocusFromPosition,
     requestInteraction,
     getPlayerTransform,
     getTargets,
-  }), [focusedId, register, requestInteraction, updateFocusFromPosition, getPlayerTransform, getTargets]);
+  }), [focused, register, requestInteraction, updateFocusFromPosition, getPlayerTransform, getTargets]);
 
   return <InteractionContext.Provider value={value}>{children}</InteractionContext.Provider>;
 }

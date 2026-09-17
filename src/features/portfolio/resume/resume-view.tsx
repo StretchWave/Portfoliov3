@@ -143,9 +143,9 @@ export function ResumeView() {
           <h2 className="resume-section__title">Executive Engineering Profile</h2>
           <p className="resume-text">
             Computer Engineering student building end-to-end systems with clear architectural boundaries and honest engineering.
-            Experience developing desktop media engines with SIMD audio DSP and lyrics inference, predictive geospatial flood
-            telemetry with digital elevation runoff routing, local-first CRDT synchronization prototypes, and web-native 3D
-            simulations. Breadth treated as an architectural asset—each domain teaching performance and failure constraints that
+            Experience developing desktop media engines with vectorized audio DSP and lyrics inference, predictive geospatial flood
+            telemetry with digital elevation runoff routing, local-first SQLite persistence architectures, and web-native 3D
+            environments. Breadth treated as an architectural asset—each domain teaching performance and failure constraints that
             strengthen the others.
           </p>
         </section>
@@ -156,16 +156,16 @@ export function ResumeView() {
           <div className="resume-skills-grid">
             <div className="resume-skill-row">
               <strong className="resume-skill-cat">Systems & Languages:</strong>
-              <span>{languages.map((s) => s.name).join(" · ")} · Rust (Familiarity) · Go (CLI/CRDT)</span>
+              <span>{languages.map((s) => s.name).join(" · ")}</span>
             </div>
             <div className="resume-skill-row">
               <strong className="resume-skill-cat">Frameworks & Engines:</strong>
-              <span>Flutter / Dart · Next.js / React · Three.js / WebGL · Web Audio API · PyTorch · TailwindCSS</span>
+              <span>Flutter / Dart · Next.js / React · Three.js / WebGL · Web Audio API · PyQt6</span>
             </div>
             <div className="resume-skill-row">
               <strong className="resume-skill-cat">Architectural Patterns:</strong>
               <span>
-                SIMD Vectorized DSP · Cellular Runoff Automata · Conflict-Free Replicated Data Types (CRDTs) ·
+                Vectorized Audio DSP · Hydrological Runoff Models · Local-First SQLite Persistence ·
                 Bounded Circuit Breakers · Deterministic Finite State Machines · Append-Only Write-Ahead Logging (WAL)
               </span>
             </div>
@@ -234,7 +234,7 @@ export function ResumeView() {
         </section>
 
         <footer className="resume-footer">
-          <span>Mohammed Mishal · Project Atlas Engineering Dossier · ATS Standard Compliant</span>
+          <span>Mohammed Mishal · Project Atlas Engineering Dossier · ATS-Friendly Export</span>
           <span>Verified Data Registry · https://stretchwave.github.io/Atlas/resume</span>
         </footer>
       </article>

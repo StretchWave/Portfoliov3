@@ -13,11 +13,15 @@ export function DiagnosticsCollector() {
   const { gl } = useThree();
   const { updateMetrics, showDiagnostics } = usePerformance();
   const frameCount = useRef(0);
-  const lastTime = useRef(performance.now());
+  const lastTime = useRef(0);
 
   useFrame(() => {
     frameCount.current += 1;
     const now = performance.now();
+    if (lastTime.current === 0) {
+      lastTime.current = now;
+      return;
+    }
     const elapsed = now - lastTime.current;
 
     // Sample every 500ms

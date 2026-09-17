@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "tsx --test tests/unit/**/*.test.ts"
   },
   "dependencies": {
     "@react-three/drei": "10.7.8",
@@ -21,6 +23,9 @@
     "@types/react": "19.2.10",
     "@types/react-dom": "19.2.3",
     "@types/three": "0.183.1",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.4",
+    "tsx": "^4.23.13",
     "typescript": "5.9.3"
   }
 }

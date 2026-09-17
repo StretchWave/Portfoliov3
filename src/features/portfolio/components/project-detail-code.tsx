@@ -10,7 +10,7 @@ export function ProjectDetailCode({ project }: { project: PortfolioProject }) {
     <section className="project-detail__section" aria-labelledby="code-abstractions-heading">
       <h2 id="code-abstractions-heading">Core Abstractions & Code Architecture</h2>
       <p>
-        Production-grade implementation excerpt highlighting key algorithmic boundaries, data structures, and failure-mode mitigations.
+        Verified implementation and architecture excerpt highlighting key algorithmic boundaries, data structures, and failure-mode mitigations.
       </p>
       <ProjectCodeInspector projectId={project.id} variant="full" />
     </section>

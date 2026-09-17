@@ -286,12 +286,30 @@ export function SystemsTopologyGraph() {
       </div>
 
       {/* SVG Canvas */}
-      <div className="topology-canvas-wrapper">
+      <div className="topology-canvas-wrapper" role="region" aria-label="Systems Architecture Topology Graph">
+        {/* Screen Reader Alternative */}
+        <div className="sr-only">
+          <h3>Systems Topology Directory</h3>
+          <p>An interactive graph of 8 interconnected architecture nodes:</p>
+          <ul>
+            {NODES.map((n) => (
+              <li key={n.id}>
+                <strong>{n.name}</strong> ({n.domainLabel}) - {n.summary} Technologies: {n.tech.join(", ")}. Protocols: {n.protocols.join(", ")}.
+              </li>
+            ))}
+          </ul>
+        </div>
+
         <svg
           viewBox="0 0 840 480"
           className="topology-svg"
-          aria-hidden="true"
+          role="img"
+          aria-labelledby="topology-graph-title topology-graph-desc"
         >
+          <title id="topology-graph-title">Systems Architecture Topology</title>
+          <desc id="topology-graph-desc">
+            Interactive network diagram illustrating Project Atlas systems, audio pipelines, and telemetry links.
+          </desc>
           <defs>
             {/* Ambient Background Grid Pattern */}
             <pattern id="topology-grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -365,7 +383,8 @@ export function SystemsTopologyGraph() {
                 onClick={() => handleSelectNode(node)}
                 role="button"
                 tabIndex={0}
-                aria-label={`Inspect ${node.name}`}
+                aria-label={`${node.name} (${node.domainLabel}): ${node.summary}`}
+                aria-pressed={isSelected}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();

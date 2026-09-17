@@ -1,8 +1,8 @@
 import { soundManager } from "@/lib/audio-synthesizer";
 
 /**
- * High-resolution WebGL Viewport Screenshot Capture with Cybernetic Watermark.
- * Uses WebGL canvas with preserveDrawingBuffer enabled.
+ * WebGL Viewport Screenshot Capture with Cybernetic Watermark.
+ * Captures the current canvas rendering at the active viewport resolution.
  */
 export async function captureViewportScreenshot(areaName: string = "Central Hub"): Promise<boolean> {
   if (typeof window === "undefined") return false;

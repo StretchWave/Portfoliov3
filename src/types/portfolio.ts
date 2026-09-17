@@ -54,11 +54,21 @@ export const worldAreaIds = [
 
 export type WorldAreaId = (typeof worldAreaIds)[number];
 
+export type CodeEvidenceType =
+  | "verified-source"
+  | "adapted-example"
+  | "conceptual"
+  | "simulation";
+
 export interface ExhibitConfiguration {
   /** A stable world-area identifier; it is not a display name. */
-  area: WorldAreaId | (string & {});
+  area: WorldAreaId;
   presentation: ExhibitPresentation;
   position: readonly [number, number, number];
+  /** Optional Euler rotation in radians. Defaults to [0, 0, 0]. */
+  rotation?: readonly [number, number, number];
+  /** Optional scale. Defaults to [1, 1, 1]. */
+  scale?: readonly [number, number, number];
   accent: string;
   interactionRange?: number;
 }

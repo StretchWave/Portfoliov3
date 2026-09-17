@@ -468,6 +468,16 @@ Executed: `npm run typecheck` (pass, code 0), `npm run build` (pass, code 0), an
     - Strips all web navigation chrome, backgrounds, and glow effects on print dialog.
     - Enforces high-contrast black & white typography and strict `break-inside: avoid;` rules, guaranteeing a clean 2-page printout or PDF export.
 - **Production & SEO**: Dynamic sitemap (`/sitemap.xml`), crawler policy (`/robots.txt`), OpenGraph meta tags, and Schema.org JSON-LD structured data.
+- **Atlas Studio Visual Authoring Environment (`/studio`)**:
+  - **Canonical Scene Data Layer (`src/data/scenes/`)**: Fully decoupled scene definitions (`as const satisfies AreaSceneDefinition`) for all 4 world areas and global environment configuration (`environment.ts`).
+  - **Data-Driven World Rendering (`DataDrivenArea`)**: Generic renderer mounting architecture modules (`SceneArchitecture`), bounded lights (`SceneLights`), portals (`ScenePortals`), and kinetic decorations (`SceneDecorations`).
+  - **Visual Editor Workspace (`src/app/studio/`)**:
+    - **Interactive Viewport**: OrbitControls and Drei TransformControls (translate `W`, rotate `E`, scale `R`) for real-time 3D object manipulation.
+    - **Scene Hierarchy**: Categorized tree view with search filter, visibility toggles, duplication (`Ctrl+D`), deletion, and object creation.
+    - **Context-Sensitive Inspector**: Type-safe XYZ vector inputs, color pickers, and module-specific props for lights, portals, and architecture.
+    - **Runtime Preview**: Seamless switch between editing and real-time first-person exploration (`WASD`).
+    - **Scene Health Validator**: Pure-logic validation (`src/lib/scene-validation.ts`) checking bounds, spawn coordinates, portal targets, and light budgets.
+    - **Persistence & CLI Tooling**: JSON snapshot import/export dialog and `scripts/scene-to-ts.ts` converting JSON scenes into TypeScript data files.
 
 
 ## Next recommended tasks for repository owner

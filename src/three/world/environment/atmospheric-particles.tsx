@@ -14,6 +14,11 @@ interface AtmosphericParticlesProps {
  * High-performance ambient light motes / atmospheric dust drifting in the space.
  * Uses a single Points instance (1 draw call) with subtle mathematical drift.
  */
+function pseudoRandom(seed: number): number {
+  const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+
 export function AtmosphericParticles({
   count = 130,
   color = "#68e4ff",
@@ -26,10 +31,15 @@ export function AtmosphericParticles({
     const seeds = new Float32Array(count);
 
     for (let i = 0; i < count; i++) {
-      pos[i * 3] = bounds.minX + Math.random() * (bounds.maxX - bounds.minX);
-      pos[i * 3 + 1] = 0.5 + Math.random() * 3.6; // height above ground
-      pos[i * 3 + 2] = bounds.minZ + Math.random() * (bounds.maxZ - bounds.minZ);
-      seeds[i] = Math.random() * Math.PI * 2;
+      const r1 = pseudoRandom(i * 4 + 1);
+      const r2 = pseudoRandom(i * 4 + 2);
+      const r3 = pseudoRandom(i * 4 + 3);
+      const r4 = pseudoRandom(i * 4 + 4);
+
+      pos[i * 3] = bounds.minX + r1 * (bounds.maxX - bounds.minX);
+      pos[i * 3 + 1] = 0.5 + r2 * 3.6; // height above ground
+      pos[i * 3 + 2] = bounds.minZ + r3 * (bounds.maxZ - bounds.minZ);
+      seeds[i] = r4 * Math.PI * 2;
     }
 
     return [pos, seeds];

@@ -29,8 +29,8 @@ export function InteractivePortfolioShell() {
     try {
       // This import is deliberately event-triggered: normal portfolio browsing
       // never asks the browser to fetch Three.js or the interactive world.
-      const module = await import("@/three/experience/interactive-experience");
-      setExperience(() => module.InteractiveExperience);
+      const interactiveModule = await import("@/three/experience/interactive-experience");
+      setExperience(() => interactiveModule.InteractiveExperience);
     } catch {
       setLaunchState("failed");
     }

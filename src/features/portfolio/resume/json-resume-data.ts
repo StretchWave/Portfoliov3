@@ -1,6 +1,8 @@
 import { profile } from "@/data/profile";
 import { profileSkills } from "@/data/skills";
 import { getAllProjects } from "@/features/portfolio/project-registry";
+import { SITE_CONFIG } from "@/lib/site-config";
+import type { PortfolioProject } from "@/types/portfolio";
 
 export interface JsonResumeSchema {
   $schema: string;
@@ -62,15 +64,33 @@ export interface JsonResumeSchema {
   }>;
 }
 
+function getProjectRole(p: PortfolioProject): string[] {
+  if (p.status === "concept") return ["Game Concept Designer"];
+  if (p.priority === "flagship") return ["Systems Architecture", "Software Engineer"];
+  if (p.category === "data-and-intelligence") return ["Data Pipeline Engineer"];
+  return ["Software Engineer"];
+}
+
+function getSkillLevel(proficiencyLabel: string): string {
+  const lower = proficiencyLabel.toLowerCase();
+  if (lower.includes("core")) return "Proficient";
+  if (lower.includes("production") || lower.includes("used in")) return "Applied in Projects";
+  if (lower.includes("learning")) return "Learning";
+  return "Familiarity";
+}
+
 export function generateJsonResume(): JsonResumeSchema {
   const projects = getAllProjects();
 
-  // Group skills by category
-  const skillsByCategory: Record<string, string[]> = {};
+  // Group skills by category with honest level categorization
+  const skillsByCategory: Record<string, { keywords: string[]; levels: Set<string> }> = {};
   for (const s of profileSkills) {
     const cat = s.category.toUpperCase();
-    if (!skillsByCategory[cat]) skillsByCategory[cat] = [];
-    skillsByCategory[cat].push(s.name);
+    if (!skillsByCategory[cat]) {
+      skillsByCategory[cat] = { keywords: [], levels: new Set() };
+    }
+    skillsByCategory[cat].keywords.push(s.name);
+    skillsByCategory[cat].levels.add(getSkillLevel(s.proficiencyLabel));
   }
 
   return {
@@ -78,9 +98,9 @@ export function generateJsonResume(): JsonResumeSchema {
     basics: {
       name: profile.name,
       label: "Computer Engineering Student · Systems & Interactive Worlds",
-      url: "https://stretchwave.github.io/Atlas",
+      url: SITE_CONFIG.url,
       summary:
-        "Computer Engineering student building software, games, and interactive systems. Proven track record developing desktop systems with native OS integration, geospatial hydrological predictive telemetry, local-first CRDT synchronization, and high-performance WebGL/3D environments.",
+        "Computer Engineering student building software, games, and interactive systems. Demonstrated experience developing desktop systems with native OS integration, geospatial hydrological telemetry and flood modeling, local-first SQLite persistence, and web-native 3D environments.",
       location: {
         countryCode: "IN",
         city: "Kerala",
@@ -97,6 +117,8 @@ export function generateJsonResume(): JsonResumeSchema {
         institution: "APJ Abdul Kalam Technological University",
         area: "Computer Science & Engineering",
         studyType: "Bachelor of Technology (B.Tech)",
+        startDate: "2022",
+        endDate: "2026 (Expected)",
         courses: [
           "Data Structures & Algorithms",
           "Operating Systems & Systems Programming",
@@ -107,10 +129,10 @@ export function generateJsonResume(): JsonResumeSchema {
         ],
       },
     ],
-    skills: Object.entries(skillsByCategory).map(([cat, keywords]) => ({
+    skills: Object.entries(skillsByCategory).map(([cat, data]) => ({
       name: cat,
-      level: "Advanced / Proficient",
-      keywords,
+      level: Array.from(data.levels).join(" / "),
+      keywords: data.keywords,
     })),
     projects: projects.map((p) => ({
       name: p.name,
@@ -122,8 +144,8 @@ export function generateJsonResume(): JsonResumeSchema {
       ],
       keywords: [...p.technologies],
       url: p.links?.[0]?.href,
-      roles: ["Lead Systems Architect", "Software Engineer"],
-      type: "application",
+      roles: getProjectRole(p),
+      type: p.status === "concept" ? "concept" : p.status === "prototype" ? "prototype" : "application",
     })),
   };
 }
@@ -144,14 +166,15 @@ ${resume.basics.summary}
 
 CORE TECHNICAL COMPETENCIES
 ---------------------------
-${resume.skills.map((s) => `• ${s.name}: ${s.keywords.join(", ")}`).join("\n")}
+${resume.skills.map((s) => `• ${s.name} (${s.level}): ${s.keywords.join(", ")}`).join("\n")}
 
-FLAGSHIP SYSTEMS ARCHITECTURES & PROJECTS
+SELECTED SYSTEMS ARCHITECTURES & PROJECTS
 -----------------------------------------
 ${resume.projects
   .map(
     (p) => `
-[${p.name.toUpperCase()}]
+[${p.name.toUpperCase()}] (${p.type.toUpperCase()})
+Roles: ${p.roles.join(", ")}
 Technologies: ${p.keywords.join(", ")}
 Summary: ${p.description}
 ${p.highlights.map((h) => `  - ${h}`).join("\n")}`
@@ -161,10 +184,10 @@ ${p.highlights.map((h) => `  - ${h}`).join("\n")}`
 EDUCATION
 ---------
 ${resume.education[0].studyType} in ${resume.education[0].area}
-${resume.education[0].institution}
+${resume.education[0].institution} (${resume.education[0].startDate} - ${resume.education[0].endDate})
 Relevant Coursework: ${resume.education[0].courses.join(", ")}
 
 ================================================================================
-Generated from Project Atlas Interactive Dossier Engine (ATS-Compliant)
+Generated from Project Atlas Engineering Dossier (ATS-Friendly Export)
 ================================================================================`;
 }

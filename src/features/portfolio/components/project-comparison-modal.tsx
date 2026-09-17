@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { soundManager } from "@/lib/audio-synthesizer";
+import { useModalFocusTrap } from "@/lib/modal-accessibility";
 import {
   COMPARISON_SPECS,
   COMPARISON_PRESETS,
@@ -30,28 +31,17 @@ export function ProjectComparisonModal({
 
   const [activePresetId, setActivePresetId] = useState<string | null>("desktop-ipc");
 
-  // Sync initialProjectIds when opened with custom list
-  useEffect(() => {
+  const [prevInitialIds, setPrevInitialIds] = useState(initialProjectIds);
+  if (initialProjectIds !== prevInitialIds) {
+    setPrevInitialIds(initialProjectIds);
     if (initialProjectIds && initialProjectIds.length >= 2) {
       setSelectedIds(initialProjectIds.slice(0, 3));
       setActivePresetId(null);
     }
-  }, [initialProjectIds]);
+  }
 
-  // Handle ESC key
-  useEffect(() => {
-    if (!isOpen) return;
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModalFocusTrap(isOpen, dialogRef, onClose);
 
   const handleSelectPreset = useCallback((presetId: string) => {
     const preset = COMPARISON_PRESETS.find((p) => p.id === presetId);
@@ -100,7 +90,7 @@ export function ProjectComparisonModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="comparison-modal">
+      <div ref={dialogRef} className="comparison-modal">
         {/* Header */}
         <div className="comparison-modal__header">
           <div>

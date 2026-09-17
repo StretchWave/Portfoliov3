@@ -3,7 +3,13 @@ import { notFound } from "next/navigation";
 
 import { PageShell } from "@/components/layout/page-shell";
 import { ProjectDetails } from "@/features/portfolio/components/project-details";
-import { getProjectBySlug } from "@/features/portfolio/project-registry";
+import { getAllProjects, getProjectBySlug } from "@/features/portfolio/project-registry";
+
+export function generateStaticParams() {
+  return getAllProjects().map((project) => ({
+    slug: project.slug,
+  }));
+}
 
 interface ProjectPageProps {
   params: Promise<{ slug: string }>;

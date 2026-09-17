@@ -1,5 +1,7 @@
 "use client";
 
+import { loadSettings, saveSettings } from "@/lib/storage";
+
 export type HapticStyle = "light" | "medium" | "heavy" | "success" | "warning";
 
 const HAPTIC_PATTERNS: Record<HapticStyle, number | number[]> = {
@@ -16,15 +18,10 @@ class HapticFeedbackManager {
 
   constructor() {
     if (typeof window !== "undefined" && typeof navigator !== "undefined") {
-      this.isSupported = "vibrate" in navigator && typeof navigator.vibrate === "function";
-      try {
-        const stored = localStorage.getItem("atlas-haptics-enabled");
-        if (stored !== null) {
-          this.isEnabled = stored === "true";
-        }
-      } catch {
-        // Ignore localStorage restrictions
-      }
+      this.isSupported =
+        "vibrate" in navigator && typeof navigator.vibrate === "function";
+      const settings = loadSettings();
+      this.isEnabled = settings.hapticsEnabled;
     }
   }
 
@@ -41,11 +38,7 @@ class HapticFeedbackManager {
 
   public setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
-    try {
-      localStorage.setItem("atlas-haptics-enabled", String(enabled));
-    } catch {
-      // Ignore localStorage restrictions
-    }
+    saveSettings({ hapticsEnabled: enabled });
   }
 
   public getEnabled(): boolean {

@@ -1,13 +1,12 @@
 import type { MetadataRoute } from "next";
+import { SITE_CONFIG, getCanonicalSiteUrl } from "@/lib/site-config";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = "https://stretchwave.github.io/Atlas";
-
   return {
     rules: {
       userAgent: "*",
       allow: "/",
     },
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: getCanonicalSiteUrl("/sitemap.xml"),
   };
 }

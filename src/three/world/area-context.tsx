@@ -1,12 +1,19 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useMemo } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  useEffect,
+} from "react";
 import type { ReactNode } from "react";
 import type { WorldAreaId } from "@/types/portfolio";
 import { WORLD_AREAS, type WorldAreaInfo } from "@/data/world-areas";
 
 export { WORLD_AREAS, type WorldAreaInfo };
-
 
 interface WorldAreaContextValue {
   currentArea: WorldAreaId;
@@ -29,25 +36,52 @@ export function WorldAreaProvider({
   const [previousArea, setPreviousArea] = useState<WorldAreaId | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  const travelToArea = useCallback((areaId: WorldAreaId) => {
-    if (areaId === currentArea) return;
-    setIsTransitioning(true);
-    setPreviousArea(currentArea);
-    
-    // Quick atmospheric fade transition
-    setTimeout(() => {
-      setCurrentArea(areaId);
-      setIsTransitioning(false);
-    }, 450);
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentAreaRef = useRef<WorldAreaId>(currentArea);
+  useEffect(() => {
+    currentAreaRef.current = currentArea;
   }, [currentArea]);
 
-  const value = useMemo<WorldAreaContextValue>(() => ({
-    currentArea,
-    previousArea,
-    areaInfo: WORLD_AREAS[currentArea],
-    isTransitioning,
-    travelToArea,
-  }), [currentArea, previousArea, isTransitioning, travelToArea]);
+  // Clean up any pending transition timer on unmount
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current) {
+        clearTimeout(transitionTimerRef.current);
+      }
+    };
+  }, []);
+
+  const travelToArea = useCallback((areaId: WorldAreaId) => {
+    // If already at destination and not transitioning, no-op
+    if (areaId === currentAreaRef.current && !transitionTimerRef.current) return;
+
+    // Deterministic cancellation: abort any in-flight transition timer so final request wins
+    if (transitionTimerRef.current) {
+      clearTimeout(transitionTimerRef.current);
+      transitionTimerRef.current = null;
+    }
+
+    setIsTransitioning(true);
+    setPreviousArea(currentAreaRef.current);
+
+    // Controlled atmospheric fade transition
+    transitionTimerRef.current = setTimeout(() => {
+      setCurrentArea(areaId);
+      setIsTransitioning(false);
+      transitionTimerRef.current = null;
+    }, 450);
+  }, []);
+
+  const value = useMemo<WorldAreaContextValue>(
+    () => ({
+      currentArea,
+      previousArea,
+      areaInfo: WORLD_AREAS[currentArea],
+      isTransitioning,
+      travelToArea,
+    }),
+    [currentArea, previousArea, isTransitioning, travelToArea]
+  );
 
   return (
     <WorldAreaContext.Provider value={value}>

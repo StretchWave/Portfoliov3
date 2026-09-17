@@ -1,18 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useInteraction } from "./interaction-provider";
 
 export function InteractionHud() {
   const { focused } = useInteraction();
-  const [isTouch, setIsTouch] = useState(false);
-
-  useEffect(() => {
-    setIsTouch(
+  const [isTouch] = useState(() => {
+    return (
       typeof window !== "undefined" &&
-        ("ontouchstart" in window || navigator.maxTouchPoints > 0)
+      ("ontouchstart" in window || navigator.maxTouchPoints > 0)
     );
-  }, []);
+  });
 
   return (
     <div className="interaction-hud" aria-live="polite">

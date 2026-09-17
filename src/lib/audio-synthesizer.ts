@@ -1,10 +1,22 @@
 "use client";
 
+import { loadSettings, saveSettings } from "@/lib/storage";
+
 /**
  * Procedural Web Audio Synthesizer.
- * Generates tactile sound effects directly in code using browser oscillators
- * and gain envelopes — zero audio files, zero KB asset load.
- * Features generative district ambient soundscapes with smooth crossfading.
+ * Generates 100% procedural synthesized audio using Web Audio API oscillators
+ * and gain envelopes — zero external audio files downloaded.
+ *
+ * Audio Bus Hierarchy:
+ * AudioContext
+ *      ↓
+ * Master Gain
+ *      ├── Ambient Gain (District ambient soundscapes)
+ *      └── Effects Gain (UI clicks, spatial portals, footsteps, chimes)
+ *               ↓
+ *           (Spatial Panner)
+ *               ↓
+ *          Destination
  */
 
 export type SoundProfile = "cybernetic" | "harmonic" | "crisp";
@@ -21,7 +33,11 @@ class AudioSynthesizer {
   private listenerZ: number = 0;
   private listenerYaw: number = 0;
 
-  private ambientMasterGain: GainNode | null = null;
+  // Dedicated Audio Bus Nodes
+  private masterGain: GainNode | null = null;
+  private ambientGain: GainNode | null = null;
+  private effectsGain: GainNode | null = null;
+
   private activeAmbientNodes: {
     oscillators: OscillatorNode[];
     gain: GainNode;
@@ -31,42 +47,13 @@ class AudioSynthesizer {
 
   constructor() {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("atlas-sound-enabled");
-      this.enabled = stored === "true";
-
-      const storedVol = localStorage.getItem("atlas-sound-volume");
-      if (storedVol) {
-        const parsed = Number.parseFloat(storedVol);
-        if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 1) {
-          this.volume = parsed;
-        }
-      }
-
-      const storedAmb = localStorage.getItem("atlas-ambient-volume");
-      if (storedAmb) {
-        const parsed = Number.parseFloat(storedAmb);
-        if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 1) {
-          this.ambientVolume = parsed;
-        }
-      }
-
-      const storedFx = localStorage.getItem("atlas-effects-volume");
-      if (storedFx) {
-        const parsed = Number.parseFloat(storedFx);
-        if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 1) {
-          this.effectsVolume = parsed;
-        }
-      }
-
-      const storedProfile = localStorage.getItem("atlas-sound-profile") as SoundProfile;
-      if (storedProfile === "cybernetic" || storedProfile === "harmonic" || storedProfile === "crisp") {
-        this.profile = storedProfile;
-      }
-
-      const storedSpatial = localStorage.getItem("atlas-spatial-enabled");
-      if (storedSpatial !== null) {
-        this.spatialEnabled = storedSpatial === "true";
-      }
+      const settings = loadSettings();
+      this.enabled = settings.soundEnabled;
+      this.volume = settings.masterVolume;
+      this.ambientVolume = settings.ambientVolume;
+      this.effectsVolume = settings.effectsVolume;
+      this.profile = settings.soundProfile;
+      this.spatialEnabled = settings.spatialEnabled;
 
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
@@ -88,9 +75,7 @@ class AudioSynthesizer {
 
   public setVolume(volume: number): void {
     this.volume = Math.max(0, Math.min(1, volume));
-    if (typeof window !== "undefined") {
-      localStorage.setItem("atlas-sound-volume", this.volume.toString());
-    }
+    saveSettings({ masterVolume: this.volume });
     this.syncGains();
   }
 
@@ -100,9 +85,7 @@ class AudioSynthesizer {
 
   public setAmbientVolume(vol: number): void {
     this.ambientVolume = Math.max(0, Math.min(1, vol));
-    if (typeof window !== "undefined") {
-      localStorage.setItem("atlas-ambient-volume", this.ambientVolume.toString());
-    }
+    saveSettings({ ambientVolume: this.ambientVolume });
     this.syncGains();
   }
 
@@ -112,9 +95,8 @@ class AudioSynthesizer {
 
   public setEffectsVolume(vol: number): void {
     this.effectsVolume = Math.max(0, Math.min(1, vol));
-    if (typeof window !== "undefined") {
-      localStorage.setItem("atlas-effects-volume", this.effectsVolume.toString());
-    }
+    saveSettings({ effectsVolume: this.effectsVolume });
+    this.syncGains();
   }
 
   public getProfile(): SoundProfile {
@@ -123,9 +105,7 @@ class AudioSynthesizer {
 
   public setProfile(profile: SoundProfile): void {
     this.profile = profile;
-    if (typeof window !== "undefined") {
-      localStorage.setItem("atlas-sound-profile", profile);
-    }
+    saveSettings({ soundProfile: profile });
   }
 
   public isSpatialEnabled(): boolean {
@@ -134,9 +114,7 @@ class AudioSynthesizer {
 
   public setSpatialEnabled(enabled: boolean): void {
     this.spatialEnabled = enabled;
-    if (typeof window !== "undefined") {
-      localStorage.setItem("atlas-spatial-enabled", String(enabled));
-    }
+    saveSettings({ spatialEnabled: enabled });
   }
 
   public updateSpatialListener(x: number, _y: number, z: number, yaw: number): void {
@@ -146,17 +124,23 @@ class AudioSynthesizer {
   }
 
   private syncGains(): void {
-    if (this.ambientMasterGain && this.ctx) {
-      const targetGain = this.volume * this.ambientVolume;
-      this.ambientMasterGain.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.05);
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    if (this.masterGain) {
+      this.masterGain.gain.setTargetAtTime(this.volume, now, 0.05);
+    }
+    if (this.ambientGain) {
+      this.ambientGain.gain.setTargetAtTime(this.ambientVolume, now, 0.05);
+    }
+    if (this.effectsGain) {
+      this.effectsGain.gain.setTargetAtTime(this.effectsVolume, now, 0.05);
     }
   }
 
   public setEnabled(enabled: boolean): void {
     this.enabled = enabled;
-    if (typeof window !== "undefined") {
-      localStorage.setItem("atlas-sound-enabled", enabled ? "true" : "false");
-    }
+    saveSettings({ soundEnabled: enabled });
+
     if (enabled) {
       this.initContext();
       this.playClick();
@@ -183,23 +167,41 @@ class AudioSynthesizer {
     if (this.ctx && this.ctx.state === "suspended") {
       this.ctx.resume().catch(() => {});
     }
-    if (this.ctx && !this.ambientMasterGain) {
-      this.ambientMasterGain = this.ctx.createGain();
-      this.ambientMasterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
-      this.ambientMasterGain.connect(this.ctx.destination);
+    if (this.ctx && !this.masterGain) {
+      // 1. Master Gain connected to hardware destination
+      this.masterGain = this.ctx.createGain();
+      this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+      this.masterGain.connect(this.ctx.destination);
+
+      // 2. Ambient Bus connected to Master
+      this.ambientGain = this.ctx.createGain();
+      this.ambientGain.gain.setValueAtTime(this.ambientVolume, this.ctx.currentTime);
+      this.ambientGain.connect(this.masterGain);
+
+      // 3. Effects Bus connected to Master
+      this.effectsGain = this.ctx.createGain();
+      this.effectsGain.gain.setValueAtTime(this.effectsVolume, this.ctx.currentTime);
+      this.effectsGain.connect(this.masterGain);
     }
     return this.ctx;
   }
 
+  private getEffectsDestination(): AudioNode {
+    if (this.effectsGain) return this.effectsGain;
+    if (this.masterGain) return this.masterGain;
+    if (this.ctx) return this.ctx.destination;
+    throw new Error("AudioContext not initialized");
+  }
+
   private pauseAmbient(): void {
-    if (this.ambientMasterGain && this.ctx) {
-      this.ambientMasterGain.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.15);
+    if (this.ambientGain && this.ctx) {
+      this.ambientGain.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.15);
     }
   }
 
   private resumeAmbient(): void {
-    if (this.ambientMasterGain && this.ctx && this.enabled) {
-      this.ambientMasterGain.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.3);
+    if (this.ambientGain && this.ctx && this.enabled) {
+      this.ambientGain.gain.setTargetAtTime(this.ambientVolume, this.ctx.currentTime, 0.3);
     }
   }
 
@@ -212,7 +214,7 @@ class AudioSynthesizer {
 
     if (!this.enabled) return;
     const ctx = this.initContext();
-    if (!ctx || !this.ambientMasterGain) return;
+    if (!ctx || !this.ambientGain) return;
 
     const now = ctx.currentTime;
 
@@ -238,20 +240,20 @@ class AudioSynthesizer {
       this.activeAmbientNodes = null;
     }
 
-    // Initialize new district track
+    // Initialize new district track routed through ambientGain bus
     const districtGain = ctx.createGain();
     districtGain.gain.setValueAtTime(0.0001, now);
     districtGain.gain.linearRampToValueAtTime(0.18, now + 1.4);
-    districtGain.connect(this.ambientMasterGain);
+    districtGain.connect(this.ambientGain);
 
     const oscillators: OscillatorNode[] = [];
     const intervals: number[] = [];
 
     if (areaId === "software-district") {
-      // Deep server hum + subtle filtered noise modulation
+      // Deep resonant server hum with gentle flutter
       const sub = ctx.createOscillator();
       sub.type = "sine";
-      sub.frequency.setValueAtTime(55, now); // A1
+      sub.frequency.setValueAtTime(55, now); // A1 note
       const subGain = ctx.createGain();
       subGain.gain.setValueAtTime(0.35, now);
       sub.connect(subGain);
@@ -261,10 +263,10 @@ class AudioSynthesizer {
 
       const hum = ctx.createOscillator();
       hum.type = "triangle";
-      hum.frequency.setValueAtTime(110, now); // A2
+      hum.frequency.setValueAtTime(110, now); // A2 note
       const humFilter = ctx.createBiquadFilter();
       humFilter.type = "lowpass";
-      humFilter.frequency.setValueAtTime(450, now);
+      humFilter.frequency.setValueAtTime(240, now);
       const humGain = ctx.createGain();
       humGain.gain.setValueAtTime(0.12, now);
       hum.connect(humFilter);
@@ -273,14 +275,14 @@ class AudioSynthesizer {
       hum.start(now);
       oscillators.push(hum);
     } else if (areaId === "intelligence-observatory") {
-      // Atmospheric ocean/rain resonance
+      // Cosmic shimmering drone
       const drone = ctx.createOscillator();
       drone.type = "sine";
-      drone.frequency.setValueAtTime(43.65, now); // F1
+      drone.frequency.setValueAtTime(65.41, now); // C2
       const filter = ctx.createBiquadFilter();
       filter.type = "bandpass";
-      filter.frequency.setValueAtTime(280, now);
-      filter.Q.setValueAtTime(3.0, now);
+      filter.frequency.setValueAtTime(320, now);
+      filter.Q.setValueAtTime(3, now);
       const droneGain = ctx.createGain();
       droneGain.gain.setValueAtTime(0.4, now);
       drone.connect(filter);
@@ -291,24 +293,25 @@ class AudioSynthesizer {
 
       const highPad = ctx.createOscillator();
       highPad.type = "sine";
-      highPad.frequency.setValueAtTime(130.81, now); // C3
+      highPad.frequency.setValueAtTime(261.63, now); // C4
       const highGain = ctx.createGain();
-      highGain.gain.setValueAtTime(0.15, now);
+      highGain.gain.setValueAtTime(0.06, now);
       highPad.connect(highGain);
       highGain.connect(districtGain);
       highPad.start(now);
       oscillators.push(highPad);
     } else if (areaId === "creative-workshop") {
-      // Warm, open harmonic synth chord
-      [110, 164.81, 220].forEach((freq) => {
+      // Vibrant dual-tone harmonic bed
+      const chords = [146.83, 174.61, 220.0]; // D-minor triad
+      chords.forEach((freq) => {
         const osc = ctx.createOscillator();
         osc.type = "triangle";
         osc.frequency.setValueAtTime(freq, now);
         const f = ctx.createBiquadFilter();
         f.type = "lowpass";
-        f.frequency.setValueAtTime(650, now);
+        f.frequency.setValueAtTime(350, now);
         const g = ctx.createGain();
-        g.gain.setValueAtTime(0.12, now);
+        g.gain.setValueAtTime(0.08, now);
         osc.connect(f);
         f.connect(g);
         g.connect(districtGain);
@@ -316,16 +319,17 @@ class AudioSynthesizer {
         oscillators.push(osc);
       });
     } else {
-      // Atlas Central Hub — Airy Lydian chime pad
-      [92.5, 138.59, 207.65].forEach((freq) => {
+      // Central Hub: serene pristine baseline drone (F-major 7th)
+      const hubFrequencies = [87.31, 130.81, 164.81]; // F2, C3, E3
+      hubFrequencies.forEach((freq, idx) => {
         const osc = ctx.createOscillator();
         osc.type = "sine";
         osc.frequency.setValueAtTime(freq, now);
         const f = ctx.createBiquadFilter();
         f.type = "lowpass";
-        f.frequency.setValueAtTime(750, now);
+        f.frequency.setValueAtTime(280, now);
         const g = ctx.createGain();
-        g.gain.setValueAtTime(0.14, now);
+        g.gain.setValueAtTime(0.15 / (idx + 1), now);
         osc.connect(f);
         f.connect(g);
         g.connect(districtGain);
@@ -342,7 +346,7 @@ class AudioSynthesizer {
   }
 
   public stopAmbient(): void {
-    if (!this.activeAmbientNodes || !this.ctx) return;
+    if (!this.ctx || !this.activeAmbientNodes) return;
     const now = this.ctx.currentTime;
     const track = this.activeAmbientNodes;
     track.gain.gain.setValueAtTime(track.gain.gain.value, now);
@@ -362,380 +366,564 @@ class AudioSynthesizer {
       track.gain.disconnect();
     }, 700);
     this.activeAmbientNodes = null;
+    this.currentDistrict = null;
   }
 
-  /**
-   * Resonant low-pass filtered harmonic sweep for portal travel.
-   */
-  public playPortalTravel(): void {
-    if (!this.enabled) return;
-    const ctx = this.initContext();
-    if (!ctx) return;
+  // Tactical SFX Sound Generators routed through Effects Gain Bus
 
-    const now = ctx.currentTime;
-
-    // Harmonic chord (Root + Fifth + Octave)
-    [220, 329.63, 440].forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, now);
-      osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.45);
-
-      filter.type = "lowpass";
-      filter.frequency.setValueAtTime(400, now);
-      filter.frequency.exponentialRampToValueAtTime(2400, now + 0.3);
-      filter.frequency.exponentialRampToValueAtTime(300, now + 0.5);
-
-      gain.gain.setValueAtTime(0.001, now);
-      gain.gain.linearRampToValueAtTime(0.12 / (idx + 1), now + 0.15);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(now);
-      osc.stop(now + 0.55);
-    });
-  }
-
-  /**
-   * Crisp high-frequency glass chime for exhibit inspection.
-   */
-  public playChime(): void {
-    if (!this.enabled) return;
-    const ctx = this.initContext();
-    if (!ctx) return;
-
-    const now = ctx.currentTime;
-    [880, 1318.51, 1760].forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(freq, now + idx * 0.04);
-
-      gain.gain.setValueAtTime(0.001, now + idx * 0.04);
-      gain.gain.linearRampToValueAtTime(0.08, now + idx * 0.04 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.04 + 0.35);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(now + idx * 0.04);
-      osc.stop(now + idx * 0.04 + 0.4);
-    });
-  }
-
-  /**
-   * Soft tactile click for UI button interactions.
-   */
   public playClick(): void {
     if (!this.enabled) return;
     const ctx = this.initContext();
     if (!ctx) return;
 
     const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
+
+    if (this.profile === "cybernetic") {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+
+      osc.type = "square";
+      osc.frequency.setValueAtTime(1200, now);
+      osc.frequency.exponentialRampToValueAtTime(240, now + 0.04);
+
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(3200, now);
+
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(dest);
+
+      osc.start(now);
+      osc.stop(now + 0.045);
+    } else if (this.profile === "harmonic") {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(440, now + 0.06);
+
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+      osc.connect(gain);
+      gain.connect(dest);
+
+      osc.start(now);
+      osc.stop(now + 0.065);
+    } else {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(1800, now);
+      osc.frequency.exponentialRampToValueAtTime(600, now + 0.02);
+
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+
+      osc.connect(gain);
+      gain.connect(dest);
+
+      osc.start(now);
+      osc.stop(now + 0.025);
+    }
+  }
+
+  public playBlip(): void {
+    if (!this.enabled) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.type = "sine";
-    osc.frequency.setValueAtTime(1200, now);
-    osc.frequency.exponentialRampToValueAtTime(300, now + 0.03);
+    osc.frequency.setValueAtTime(1046.5, now); // C6
+    osc.frequency.exponentialRampToValueAtTime(2093.0, now + 0.05); // C7
 
-    gain.gain.setValueAtTime(0.05, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(dest);
 
     osc.start(now);
-    osc.stop(now + 0.035);
+    osc.stop(now + 0.055);
   }
 
-  /**
-   * Ultra-crisp micro-click for UI buttons, tabs, chips, and toggles.
-   */
+  public playChime(): void {
+    if (!this.enabled) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(587.33, now); // D5
+    osc.frequency.setValueAtTime(880.0, now + 0.06); // A5
+    osc.frequency.setValueAtTime(1174.66, now + 0.12); // D6
+
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(2400, now);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(dest);
+
+    osc.start(now);
+    osc.stop(now + 0.42);
+  }
+
+  public playWarpSound(): void {
+    if (!this.enabled) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(920, now + 0.35);
+
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.linearRampToValueAtTime(0.22, now + 0.18);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+    osc.connect(gain);
+    gain.connect(dest);
+
+    osc.start(now);
+    osc.stop(now + 0.42);
+  }
+
   public playTactileClick(): void {
     if (!this.enabled) return;
     const ctx = this.initContext();
     if (!ctx) return;
 
     const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const filter = ctx.createBiquadFilter();
-    const gain = ctx.createGain();
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(2800, now);
-    osc.frequency.exponentialRampToValueAtTime(1400, now + 0.012);
-
-    filter.type = "bandpass";
-    filter.frequency.setValueAtTime(2200, now);
-    filter.Q.setValueAtTime(3.0, now);
-
-    gain.gain.setValueAtTime(0.04, now);
-    gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.014);
-
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.016);
-  }
-
-  /**
-   * Harmonic resonant chime for topology node inspection.
-   */
-  public playNodeBeep(pitchOffset: number = 0): void {
-    if (!this.enabled) return;
-    const ctx = this.initContext();
-    if (!ctx) return;
-
-    const now = ctx.currentTime;
-    const baseFreq = 1046.5 * Math.pow(2, pitchOffset / 12);
-
-    [baseFreq, baseFreq * 1.25].forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(freq, now + idx * 0.02);
-
-      gain.gain.setValueAtTime(0.001, now + idx * 0.02);
-      gain.gain.linearRampToValueAtTime(0.06, now + idx * 0.02 + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0008, now + idx * 0.02 + 0.22);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(now + idx * 0.02);
-      osc.stop(now + idx * 0.02 + 0.25);
-    });
-  }
-
-  /**
-   * Fast melodic blip for stage progression, navigation pulses, and tab switches.
-   */
-  public playBlip(pitchOffset: number = 0): void {
-    if (!this.enabled) return;
-    const ctx = this.initContext();
-    if (!ctx) return;
-
-    const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
-    osc.type = "sine";
-    const freq = 880 * Math.pow(2, pitchOffset / 12);
-    osc.frequency.setValueAtTime(freq, now);
-    osc.frequency.exponentialRampToValueAtTime(freq * 1.4, now + 0.04);
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(800, now);
+    osc.frequency.exponentialRampToValueAtTime(120, now + 0.015);
 
-    const effGain = 0.045 * this.effectsVolume;
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(effGain, now + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(dest);
 
     osc.start(now);
-    osc.stop(now + 0.085);
+    osc.stop(now + 0.02);
   }
 
   /**
-   * Spatial 3D Audio Sonification ping based on listener distance & camera angle.
+   * Spatially located sound effect for portals and world exhibits.
+   * Calculates stereo panning and 1/distance attenuation relative to listener position.
    */
-  public playSpatialPing(emitterX: number, emitterZ: number, baseFreq: number = 784): void {
-    if (!this.enabled || !this.spatialEnabled) return;
+  public playSpatialPortalSound(emitterX: number, emitterZ: number): void {
+    if (!this.enabled) return;
     const ctx = this.initContext();
     if (!ctx) return;
 
-    // Euclidean distance in X-Z plane
     const dx = emitterX - this.listenerX;
     const dz = emitterZ - this.listenerZ;
     const dist = Math.sqrt(dx * dx + dz * dz);
 
-    // Beyond auditory horizon (e.g. 24 units), skip processing
-    if (dist > 24) return;
-
-    // Distance attenuation curve (inverse proportional with soft minimum)
-    const maxVol = 0.05 * this.effectsVolume;
-    const attenuation = Math.max(0.001, maxVol * (1 - dist / 24));
-
-    // Spatial Panning calculation:
-    // Determine relative angle to camera yaw
-    const angleToEmitter = Math.atan2(dx, dz);
-    const relativeAngle = angleToEmitter - this.listenerYaw;
-    const rawPan = Math.sin(relativeAngle);
-    // Clamp to standard StereoPanner [-1, 1]
-    const pan = Math.max(-1, Math.min(1, rawPan));
+    // Attenuation falls off smoothly between 1.0m and 18.0m
+    const maxDist = 18.0;
+    if (dist > maxDist) return;
 
     const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
+    const atten = Math.max(0, 1 - dist / maxDist);
+    const volume = 0.22 * (atten * atten);
+
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
-    osc.type = this.profile === "harmonic" ? "triangle" : this.profile === "crisp" ? "sine" : "sawtooth";
-    osc.frequency.setValueAtTime(baseFreq, now);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
 
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(attenuation, now + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
 
     osc.connect(gain);
 
-    // Stereo Panning (StereoPannerNode if supported)
-    const contextWithPanner = ctx as unknown as { createStereoPanner?: () => StereoPannerNode };
-    if (typeof contextWithPanner.createStereoPanner === "function") {
-      const panner = contextWithPanner.createStereoPanner();
-      panner.pan.setValueAtTime(pan, now);
+    if (this.spatialEnabled && typeof ctx.createStereoPanner === "function") {
+      const panner = ctx.createStereoPanner();
+      const localX = dx * Math.cos(-this.listenerYaw) - dz * Math.sin(-this.listenerYaw);
+      const panValue = Math.max(-1, Math.min(1, localX / 8.0));
+      panner.pan.setValueAtTime(panValue, now);
       gain.connect(panner);
-      panner.connect(ctx.destination);
+      panner.connect(dest);
     } else {
-      gain.connect(ctx.destination);
+      gain.connect(dest);
     }
 
     osc.start(now);
-    osc.stop(now + 0.3);
+    osc.stop(now + 0.15);
   }
 
-  /**
-   * Dynamic audio feedback for combat trainer mechanics.
-   */
-  public playCombat(type: "parry" | "dodge" | "block" | "hit"): void {
+  public playFootstep(isSprint: boolean = false): void {
     if (!this.enabled) return;
     const ctx = this.initContext();
     if (!ctx) return;
 
     const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
 
-    if (type === "parry") {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(1480, now);
-      osc.frequency.exponentialRampToValueAtTime(440, now + 0.25);
+    osc.type = "sine";
+    const baseFreq = isSprint ? 95 : 75;
+    osc.frequency.setValueAtTime(baseFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(32, now + 0.04);
 
-      gain.gain.setValueAtTime(0.12, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+    const vol = isSprint ? 0.12 : 0.08;
+    gain.gain.setValueAtTime(vol, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.3);
-    } else if (type === "dodge") {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(420, now);
-      osc.frequency.linearRampToValueAtTime(180, now + 0.15);
+    osc.connect(gain);
+    gain.connect(dest);
 
-      gain.gain.setValueAtTime(0.07, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.2);
-    } else if (type === "block") {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(140, now);
-      osc.frequency.exponentialRampToValueAtTime(60, now + 0.12);
-
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.16);
-    } else {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(95, now);
-      osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
-
-      gain.gain.setValueAtTime(0.18, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.25);
-    }
+    osc.start(now);
+    osc.stop(now + 0.045);
   }
 
-  /**
-   * Mechanical camera shutter sound for viewport screenshot capture.
-   */
+  public playJump(): void {
+    if (!this.enabled) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(140, now);
+    osc.frequency.exponentialRampToValueAtTime(380, now + 0.09);
+
+    gain.gain.setValueAtTime(0.14, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+    osc.connect(gain);
+    gain.connect(dest);
+
+    osc.start(now);
+    osc.stop(now + 0.095);
+  }
+
+  public playLand(): void {
+    if (!this.enabled) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(110, now);
+    osc.frequency.exponentialRampToValueAtTime(35, now + 0.06);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+    osc.connect(gain);
+    gain.connect(dest);
+
+    osc.start(now);
+    osc.stop(now + 0.065);
+  }
+
+  public playRadarPing(): void {
+    if (!this.enabled) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(1760, now); // A6
+    osc.frequency.exponentialRampToValueAtTime(880, now + 0.18);
+
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+    osc.connect(gain);
+    gain.connect(dest);
+
+    osc.start(now);
+    osc.stop(now + 0.19);
+  }
+
   public playCameraShutter(): void {
     if (!this.enabled) return;
     const ctx = this.initContext();
     if (!ctx) return;
 
     const now = ctx.currentTime;
-    // Two quick mechanical clicks (mirror up, shutter close)
-    [0, 0.06].forEach((offset, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
+    const dest = this.getEffectsDestination();
 
-      filter.type = "highpass";
-      filter.frequency.setValueAtTime(1800, now + offset);
+    // Click 1: shutter curtain open
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
 
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(idx === 0 ? 3200 : 2400, now + offset);
-      osc.frequency.exponentialRampToValueAtTime(800, now + offset + 0.03);
+    osc1.type = "triangle";
+    osc1.frequency.setValueAtTime(2400, now);
+    osc1.frequency.exponentialRampToValueAtTime(400, now + 0.02);
 
-      gain.gain.setValueAtTime(0.06 * this.effectsVolume, now + offset);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.035);
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(1800, now);
 
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
+    gain1.gain.setValueAtTime(0.22, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
 
-      osc.start(now + offset);
-      osc.stop(now + offset + 0.04);
-    });
+    osc1.connect(filter);
+    filter.connect(gain1);
+    gain1.connect(dest);
+
+    osc1.start(now);
+    osc1.stop(now + 0.03);
+
+    // Click 2: shutter curtain close (delayed 45ms)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(1200, now + 0.045);
+    osc2.frequency.exponentialRampToValueAtTime(200, now + 0.08);
+
+    gain2.gain.setValueAtTime(0.001, now);
+    gain2.gain.setValueAtTime(0.18, now + 0.045);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
+
+    osc2.connect(gain2);
+    gain2.connect(dest);
+
+    osc2.start(now + 0.045);
+    osc2.stop(now + 0.09);
   }
 
-  /**
-   * Flight mode activation audio cue: ascending/descending frequency swoop.
-   */
+  public playFovStep(isZoomIn: boolean): void {
+    if (!this.enabled) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    const startFreq = isZoomIn ? 640 : 420;
+    const endFreq = isZoomIn ? 880 : 320;
+    osc.frequency.setValueAtTime(startFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.03);
+
+    gain.gain.setValueAtTime(0.09, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+
+    osc.connect(gain);
+    gain.connect(dest);
+
+    osc.start(now);
+    osc.stop(now + 0.035);
+  }
+
+  public playNodeBeep(pitchOffset: number = 0): void {
+    if (!this.enabled) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    const baseFreq = 520 * Math.pow(2, pitchOffset / 12);
+    osc.frequency.setValueAtTime(baseFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, now + 0.04);
+
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+    osc.connect(gain);
+    gain.connect(dest);
+
+    osc.start(now);
+    osc.stop(now + 0.055);
+  }
+
+  public playCombat(type: "parry" | "dodge" | "block" | "hit"): void {
+    if (!this.enabled) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    switch (type) {
+      case "parry":
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(1200, now);
+        osc.frequency.exponentialRampToValueAtTime(2400, now + 0.08);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+        break;
+      case "dodge":
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.06);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+        break;
+      case "block":
+        osc.type = "square";
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(90, now + 0.05);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+        break;
+      case "hit":
+      default:
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(45, now + 0.08);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+        break;
+    }
+
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  }
+
+  public playSpatialPing(emitterX: number, emitterZ: number, baseFreq: number = 784): void {
+    if (!this.enabled) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    const dx = emitterX - this.listenerX;
+    const dz = emitterZ - this.listenerZ;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    const maxDist = 24.0;
+    if (dist > maxDist) return;
+
+    const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
+    const atten = Math.max(0, 1 - dist / maxDist);
+    const volume = 0.16 * (atten * atten);
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(baseFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.5, now + 0.1);
+
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+    osc.connect(gain);
+
+    if (this.spatialEnabled && typeof ctx.createStereoPanner === "function") {
+      const panner = ctx.createStereoPanner();
+      const localX = dx * Math.cos(-this.listenerYaw) - dz * Math.sin(-this.listenerYaw);
+      const panValue = Math.max(-1, Math.min(1, localX / 10.0));
+      panner.pan.setValueAtTime(panValue, now);
+      gain.connect(panner);
+      panner.connect(dest);
+    } else {
+      gain.connect(dest);
+    }
+
+    osc.start(now);
+    osc.stop(now + 0.13);
+  }
+
   public playFlightEngage(isEngaging: boolean): void {
     if (!this.enabled) return;
     const ctx = this.initContext();
     if (!ctx) return;
 
     const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "triangle";
+    const startFreq = isEngaging ? 220 : 540;
+    const endFreq = isEngaging ? 580 : 180;
+    osc.frequency.setValueAtTime(startFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.15);
+
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+    osc.connect(gain);
+    gain.connect(dest);
+
+    osc.start(now);
+    osc.stop(now + 0.17);
+  }
+
+  public playPortalTravel(): void {
+    if (!this.enabled) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const dest = this.getEffectsDestination();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.type = "sine";
-    if (isEngaging) {
-      osc.frequency.setValueAtTime(220, now);
-      osc.frequency.exponentialRampToValueAtTime(660, now + 0.25);
-    } else {
-      osc.frequency.setValueAtTime(660, now);
-      osc.frequency.exponentialRampToValueAtTime(220, now + 0.22);
-    }
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.exponentialRampToValueAtTime(900, now + 0.2);
 
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.05 * this.effectsVolume, now + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(dest);
 
     osc.start(now);
-    osc.stop(now + 0.3);
+    osc.stop(now + 0.23);
   }
 }
 

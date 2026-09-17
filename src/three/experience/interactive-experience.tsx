@@ -248,7 +248,7 @@ function ExperienceInner({ onExit }: InteractiveExperienceProps) {
               type="button"
               className="button button--compact"
               onClick={handleSnapshot}
-              title="Capture High-Res Viewport Screenshot (X)"
+              title="Capture Viewport Screenshot (X)"
             >
               📸 Snap (X)
             </button>

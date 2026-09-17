@@ -61,7 +61,7 @@ export function InteractiveTerminalDemo({
           <span />
           <span />
         </div>
-        <span className="demo-terminal__title">bash — interactive execution</span>
+        <span className="demo-terminal__title">simulated command console</span>
       </div>
 
       <div className="demo-terminal__body">

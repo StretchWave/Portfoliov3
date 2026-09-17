@@ -1,9 +1,14 @@
 "use client";
 
+import { useRef } from "react";
 import { usePerformance } from "../performance/performance-context";
+import { useModalFocusTrap } from "@/lib/modal-accessibility";
 
 export function ControlsHelpModal() {
   const { showHelp, setShowHelp } = usePerformance();
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useModalFocusTrap(showHelp, modalRef, () => setShowHelp(false));
 
   if (!showHelp) return null;
 
@@ -11,11 +16,16 @@ export function ControlsHelpModal() {
     <div
       className="controls-modal-backdrop"
       onClick={() => setShowHelp(false)}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="controls-modal-title"
+      role="presentation"
     >
-      <div className="controls-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={modalRef}
+        className="controls-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="controls-modal-title"
+      >
         <div className="controls-modal__header">
           <h3 id="controls-modal-title">Navigation & Interaction Controls</h3>
           <button
@@ -59,7 +69,7 @@ export function ControlsHelpModal() {
           </div>
           <div className="control-item">
             <kbd>X</kbd>
-            <p>Capture high-res viewport screenshot PNG</p>
+            <p>Capture viewport screenshot PNG</p>
           </div>
           <div className="control-item">
             <kbd>[</kbd> <kbd>]</kbd>

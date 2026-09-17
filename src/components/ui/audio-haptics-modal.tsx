@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useRef } from "react";
 import { soundManager, type SoundProfile } from "@/lib/audio-synthesizer";
 import { hapticManager } from "@/lib/haptic-feedback";
+import { useModalFocusTrap } from "@/lib/modal-accessibility";
 
 interface AudioHapticsModalProps {
   isOpen: boolean;
@@ -19,16 +20,8 @@ export function AudioHapticsModal({ isOpen, onClose }: AudioHapticsModalProps) {
   const [hapticsEnabled, setHapticsEnabled] = useState(() => hapticManager.getEnabled());
   const hasHaptics = hapticManager.hasHardwareSupport();
 
-  // Handle Escape key
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalFocusTrap(isOpen, modalRef, onClose);
 
   if (!isOpen) return null;
 
@@ -80,7 +73,7 @@ export function AudioHapticsModal({ isOpen, onClose }: AudioHapticsModalProps) {
       aria-modal="true"
       aria-labelledby="audio-modal-title"
     >
-      <div className="audio-haptics-modal" onClick={(e) => e.stopPropagation()}>
+      <div ref={modalRef} className="audio-haptics-modal" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="audio-modal__header">
           <div>

@@ -5,16 +5,89 @@ import { soundManager } from "@/lib/audio-synthesizer";
 
 export type BiquadFilterType = "lowpass" | "highpass" | "bandpass" | "notch" | "peaking";
 
-interface FilterParams {
+export interface FilterParams {
   type: BiquadFilterType;
   cutoff: number; // Hz (20 to 20000)
   q: number; // Quality factor (0.2 to 14.0)
   gain: number; // dB (-18 to +18) for peaking
 }
 
-const MIN_FREQ = 20;
-const MAX_FREQ = 20000;
-const SAMPLE_RATE = 44100;
+export const MIN_FREQ = 20;
+export const MAX_FREQ = 20000;
+export const SAMPLE_RATE = 44100;
+
+export interface BiquadCoefficients {
+  b0: number;
+  b1: number;
+  b2: number;
+  a1: number;
+  a2: number;
+}
+
+export function calculateBiquadCoefficients(params: FilterParams, sampleRate = SAMPLE_RATE): BiquadCoefficients {
+  const f0 = params.cutoff;
+  const Q = params.q;
+  const gainDb = params.gain;
+
+  const w0 = (2 * Math.PI * f0) / sampleRate;
+  const cosW0 = Math.cos(w0);
+  const sinW0 = Math.sin(w0);
+  const alpha = sinW0 / (2 * Q);
+  const A = Math.pow(10, gainDb / 40);
+
+  let b0 = 0, b1 = 0, b2 = 0, a0 = 1, a1 = 0, a2 = 0;
+
+  switch (params.type) {
+    case "lowpass":
+      b0 = (1 - cosW0) / 2;
+      b1 = 1 - cosW0;
+      b2 = (1 - cosW0) / 2;
+      a0 = 1 + alpha;
+      a1 = -2 * cosW0;
+      a2 = 1 - alpha;
+      break;
+    case "highpass":
+      b0 = (1 + cosW0) / 2;
+      b1 = -(1 + cosW0);
+      b2 = (1 + cosW0) / 2;
+      a0 = 1 + alpha;
+      a1 = -2 * cosW0;
+      a2 = 1 - alpha;
+      break;
+    case "bandpass":
+      b0 = alpha;
+      b1 = 0;
+      b2 = -alpha;
+      a0 = 1 + alpha;
+      a1 = -2 * cosW0;
+      a2 = 1 - alpha;
+      break;
+    case "notch":
+      b0 = 1;
+      b1 = -2 * cosW0;
+      b2 = 1;
+      a0 = 1 + alpha;
+      a1 = -2 * cosW0;
+      a2 = 1 - alpha;
+      break;
+    case "peaking":
+      b0 = 1 + alpha * A;
+      b1 = -2 * cosW0;
+      b2 = 1 - alpha * A;
+      a0 = 1 + alpha / A;
+      a1 = -2 * cosW0;
+      a2 = 1 - alpha / A;
+      break;
+  }
+
+  return {
+    b0: b0 / a0,
+    b1: b1 / a0,
+    b2: b2 / a0,
+    a1: a1 / a0,
+    a2: a2 / a0,
+  };
+}
 
 export function DspFilterSandbox() {
   const [params, setParams] = useState<FilterParams>({
@@ -32,68 +105,7 @@ export function DspFilterSandbox() {
 
   // Calculate biquad coefficients based on Robert Bristow-Johnson Cookbook
   const coefficients = useMemo(() => {
-    const f0 = params.cutoff;
-    const Q = params.q;
-    const gainDb = params.gain;
-
-    const w0 = (2 * Math.PI * f0) / SAMPLE_RATE;
-    const cosW0 = Math.cos(w0);
-    const sinW0 = Math.sin(w0);
-    const alpha = sinW0 / (2 * Q);
-    const A = Math.pow(10, gainDb / 40);
-
-    let b0 = 0, b1 = 0, b2 = 0, a0 = 1, a1 = 0, a2 = 0;
-
-    switch (params.type) {
-      case "lowpass":
-        b0 = (1 - cosW0) / 2;
-        b1 = 1 - cosW0;
-        b2 = (1 - cosW0) / 2;
-        a0 = 1 + alpha;
-        a1 = -2 * cosW0;
-        a2 = 1 - alpha;
-        break;
-      case "highpass":
-        b0 = (1 + cosW0) / 2;
-        b1 = -(1 + cosW0);
-        b2 = (1 + cosW0) / 2;
-        a0 = 1 + alpha;
-        a1 = -2 * cosW0;
-        a2 = 1 - alpha;
-        break;
-      case "bandpass":
-        b0 = alpha;
-        b1 = 0;
-        b2 = -alpha;
-        a0 = 1 + alpha;
-        a1 = -2 * cosW0;
-        a2 = 1 - alpha;
-        break;
-      case "notch":
-        b0 = 1;
-        b1 = -2 * cosW0;
-        b2 = 1;
-        a0 = 1 + alpha;
-        a1 = -2 * cosW0;
-        a2 = 1 - alpha;
-        break;
-      case "peaking":
-        b0 = 1 + alpha * A;
-        b1 = -2 * cosW0;
-        b2 = 1 - alpha * A;
-        a0 = 1 + alpha / A;
-        a1 = -2 * cosW0;
-        a2 = 1 - alpha / A;
-        break;
-    }
-
-    return {
-      b0: b0 / a0,
-      b1: b1 / a0,
-      b2: b2 / a0,
-      a1: a1 / a0,
-      a2: a2 / a0,
-    };
+    return calculateBiquadCoefficients(params);
   }, [params]);
 
   // Compute frequency response curve (120 points from 20Hz to 20kHz log spaced)
@@ -235,7 +247,7 @@ export function DspFilterSandbox() {
       <div className="sandbox-panel__header">
         <div className="sandbox-badge-row">
           <span className="sandbox-badge">AUDIO DSP</span>
-          <span className="sandbox-badge sandbox-badge--sub">SIMD BIQUAD IIR</span>
+          <span className="sandbox-badge sandbox-badge--sub">BIQUAD IIR FILTER</span>
           <span className="sandbox-complexity">Complexity: O(1) · 0 Heap Allocations</span>
         </div>
         <h3>Biquad IIR Filter Magnitude Response Engine</h3>

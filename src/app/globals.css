@@ -5690,3 +5690,23 @@ kbd { display: inline-flex; min-width: 23px; justify-content: center; margin-lef
     page-break-inside: avoid !important;
   }
 }
+
+/* Accessibility: Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .edge-pulse-dot,
+  .pipeline-pulse-dot,
+  .radar-ring-pulse,
+  .discovery-toast {
+    animation: none !important;
+  }
+}
+

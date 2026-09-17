@@ -1,8 +1,11 @@
+import type { CodeEvidenceType } from "@/types/portfolio";
+
 export interface CodeSnippetItem {
   id: string;
   projectId: string;
   title: string;
   filePath: string;
+  evidenceType: CodeEvidenceType;
   language: "dart" | "python" | "typescript";
   complexity: string;
   description: string;
@@ -17,10 +20,11 @@ export const PROJECT_CODE_SNIPPETS: Record<string, CodeSnippetItem[]> = {
       projectId: "sonara",
       title: "Resilient Provider Chain Resolver",
       filePath: "lib/services/resolvers/provider_chain.dart",
+      evidenceType: "adapted-example",
       language: "dart",
       complexity: "O(k) where k = active fallback providers",
       description:
-        "Sequential fallback provider chain resolving lossless music streams and playlist URLs without persisting user API credentials.",
+        "Adapted architectural excerpt from Sonara demonstrating sequential provider fallback resolution (Lossless -> YouTube Music -> local cache) without persisting user credentials.",
       code: `class ProviderChainResolver {
   final List<StreamProvider> _providers;
   final CacheService _cache;
@@ -75,10 +79,11 @@ export const PROJECT_CODE_SNIPPETS: Record<string, CodeSnippetItem[]> = {
       projectId: "lyrune",
       title: "Logarithmic FFT Spectrum Binning",
       filePath: "src/audio/fft_visualizer.py",
+      evidenceType: "adapted-example",
       language: "python",
       complexity: "O(N log N) FFT + O(B) logarithmic bin aggregation",
       description:
-        "Performs fast Fourier transform over WASAPI loopback audio buffers, grouping frequencies into perceptually spaced logarithmic bands.",
+        "Adapted from Lyrune's Python spectral analyzer: computes fast Fourier transforms over WASAPI loopback audio buffers and aggregates frequencies into perceptually spaced logarithmic bands.",
       code: `import numpy as np
 from PyQt6.QtCore import QObject, pyqtSignal
 
@@ -128,10 +133,11 @@ class SpectralAnalyzer(QObject):
       projectId: "kerala-flood-risk-platform",
       title: "Antecedent Precipitation & Runoff Differential",
       filePath: "src/hydrology/runoff_engine.py",
+      evidenceType: "adapted-example",
       language: "python",
       complexity: "O(P × T) where P = 941 panchayats, T = 72 rolling hours",
       description:
-        "Calculates the cumulative Antecedent Precipitation Index (API) with soil saturation decay constants across 941 local governance panchayats.",
+        "Adapted hydrological formulation from the Kerala Flood Risk project calculating cumulative Antecedent Precipitation Index (API) with soil moisture decay over 941 synthetic panchayat stations.",
       code: `import numpy as np
 import pandas as pd
 
@@ -186,10 +192,11 @@ class HydrologicalRunoffEngine:
       projectId: "recoverai",
       title: "Deterministic Guardrail Policy Evaluator",
       filePath: "src/policy/guardrail_engine.py",
+      evidenceType: "conceptual",
       language: "python",
       complexity: "O(R) where R = safety compliance ruleset",
       description:
-        "Deterministic rule-based safety evaluation preventing non-compliant recovery actions and enforcing credit network cooling periods.",
+        "Conceptual safety engine design: illustrates rule-based safety evaluation to prevent non-compliant recovery escalations and enforce payment cooling periods.",
       code: `from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -242,10 +249,11 @@ class GuardrailPolicyEngine:
       projectId: "lucida-sync",
       title: "Async Token Bucket Rate Limiter",
       filePath: "src/network/rate_limiter.py",
+      evidenceType: "adapted-example",
       language: "python",
       complexity: "O(1) amortized lock acquisition",
       description:
-        "High-performance token-bucket rate limiter with exponential jitter backoff for high-throughput media ingestion.",
+        "Adapted architectural excerpt from Lucida-Sync demonstrating asynchronous token-bucket rate limiting with randomized jitter to respect external API throughput boundaries.",
       code: `import asyncio
 import time
 import random
@@ -283,10 +291,11 @@ class AsyncTokenBucket:
       projectId: "neerad-store",
       title: "ACID Transaction & WAL Journal Manager",
       filePath: "src/database/transaction_manager.py",
+      evidenceType: "adapted-example",
       language: "python",
       complexity: "O(1) transactional commit with atomic rollback",
       description:
-        "Local-first SQLite connection manager enforcing Write-Ahead Logging (WAL) and atomic inventory mutation rollbacks during POS sales.",
+        "Adapted architecture excerpt from Neerad Store SQLite backend managing Write-Ahead Logging (WAL) and atomic rollback contexts during point-of-sale inventory mutations.",
       code: `import sqlite3
 from contextlib import contextmanager
 from typing import Generator
@@ -326,10 +335,11 @@ class DatabaseService:
       projectId: "scrollbrake",
       title: "DOM Mutation Feed Culling & Classification",
       filePath: "src/content/content_guard.ts",
+      evidenceType: "adapted-example",
       language: "typescript",
       complexity: "O(M) where M = mutated DOM node subtrees",
       description:
-        "High-performance MutationObserver inspecting feed additions and dispatching content to Gemini on-device classification before layout rendering.",
+        "Adapted from ScrollBrake's Chrome extension content script: observes DOM feed mutations and intercepts short-form video shelves prior to browser paint.",
       code: `class FeedMutationInterceptor {
   private observer: MutationObserver;
   private processedIds: Set<string> = new Set();
@@ -375,10 +385,11 @@ class DatabaseService:
       projectId: "stance-combat-pvp",
       title: "Discrete Frame Buffer State Machine",
       filePath: "src/gameplay/stance_engine.ts",
+      evidenceType: "conceptual",
       language: "typescript",
       complexity: "O(1) deterministic transition per simulation tick (60Hz)",
       description:
-        "Fixed-tick combat state machine executing priority queues for parrying, stance breaks, and counter-attacks.",
+        "Conceptual game design prototype: finite state machine demonstrating deterministic frame-window mechanics (startup, active, recovery, parry) for a turn-based stance combat system.",
       code: `export type CombatStance = "High" | "Mid" | "Low";
 export type ActionState = "Idle" | "Startup" | "Active" | "Recovery" | "Parrying";
 

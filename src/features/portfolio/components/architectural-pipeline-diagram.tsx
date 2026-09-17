@@ -123,7 +123,7 @@ export function ArchitecturalPipelineDiagram({
                   type="button"
                   className={`pipeline-stage-card ${isSelected ? "pipeline-stage-card--selected" : ""} ${isSimulating ? "pipeline-stage-card--simulating" : ""}`}
                   onClick={() => handleStageSelect(index)}
-                  aria-selected={isSelected || isSimulating}
+                  aria-pressed={isSelected || isSimulating}
                 >
                   <div className="pipeline-stage-card__header">
                     <span className="pipeline-stage-card__number">

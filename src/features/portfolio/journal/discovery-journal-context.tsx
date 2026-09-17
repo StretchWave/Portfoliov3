@@ -1,7 +1,17 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import type { ReactNode } from "react";
+import { loadDiscovery, saveDiscovery } from "@/lib/storage";
 
 export interface MilestoneItem {
   id: string;
@@ -24,13 +34,13 @@ export const ALL_MILESTONES: MilestoneItem[] = [
     id: "district-software-district",
     category: "District",
     title: "Software Systems District",
-    description: "Discovered the high-density server lab and architecture zone.",
+    description: "Discovered the server architecture and desktop software lab.",
   },
   {
     id: "district-intelligence-observatory",
     category: "District",
     title: "Intelligent Systems Observatory",
-    description: "Discovered the panoramic telemetry and flood predictive analytics deck.",
+    description: "Discovered the telemetry and flood predictive analytics deck.",
   },
   {
     id: "district-creative-workshop",
@@ -50,8 +60,8 @@ export const ALL_MILESTONES: MilestoneItem[] = [
   {
     id: "demo-terminal",
     category: "Demonstration",
-    title: "Interactive Terminal Runner",
-    description: "Executed bash telemetry commands in Lucida-Sync or RecoverAI.",
+    title: "Simulated Command Console",
+    description: "Ran simulated telemetry commands in Lucida-Sync or RecoverAI.",
     href: "/projects/lucida-sync",
   },
   {
@@ -80,13 +90,13 @@ export const ALL_MILESTONES: MilestoneItem[] = [
     id: "sys-spatial-radar",
     category: "System",
     title: "Spatial Radar & Mini-Map",
-    description: "Engaged the 60fps holographic directional radar HUD (M).",
+    description: "Engaged the holographic directional radar HUD (M).",
   },
   {
     id: "sys-procedural-audio",
     category: "System",
     title: "Procedural Audio Synthesizer",
-    description: "Activated synthesized sound effects with zero external asset overhead.",
+    description: "Activated synthesized sound effects with zero external audio assets.",
   },
   {
     id: "sys-skills-evidence",
@@ -96,6 +106,8 @@ export const ALL_MILESTONES: MilestoneItem[] = [
     href: "/skills",
   },
 ];
+
+export const VALID_MILESTONE_IDS = new Set<string>(ALL_MILESTONES.map((m) => m.id));
 
 interface DiscoveryToast {
   id: string;
@@ -113,29 +125,69 @@ interface DiscoveryJournalContextValue {
   setIsJournalOpen: (open: boolean) => void;
 }
 
+export function computeDiscoveryProgress(discoveredIds: string[]): { validCount: number; total: number; percent: number } {
+  const validIds = new Set(discoveredIds.filter((id) => VALID_MILESTONE_IDS.has(id)));
+  const total = ALL_MILESTONES.length;
+  const validCount = validIds.size;
+  const percent = total > 0 ? Math.min(100, Math.round((validCount / total) * 100)) : 0;
+  return { validCount, total, percent };
+}
+
+const EMPTY_DISCOVERY_IDS: string[] = [];
+let cachedIds: string[] = [];
+let cachedRaw = "";
+const discoveryListeners = new Set<() => void>();
+
+function subscribeDiscovery(listener: () => void): () => void {
+  discoveryListeners.add(listener);
+  if (typeof window !== "undefined") {
+    window.addEventListener("storage", listener);
+  }
+  return () => {
+    discoveryListeners.delete(listener);
+    if (typeof window !== "undefined") {
+      window.removeEventListener("storage", listener);
+    }
+  };
+}
+
+function notifyDiscoveryChange(): void {
+  for (const listener of discoveryListeners) {
+    listener();
+  }
+}
+
+function getDiscoverySnapshot(): string[] {
+  if (typeof window === "undefined") return EMPTY_DISCOVERY_IDS;
+  try {
+    const raw = window.localStorage.getItem("atlas-discovery-v1") || "";
+    if (raw !== cachedRaw) {
+      cachedRaw = raw;
+      const data = loadDiscovery();
+      cachedIds = data.discoveredIds.filter((id) => VALID_MILESTONE_IDS.has(id));
+    }
+    return cachedIds;
+  } catch {
+    return EMPTY_DISCOVERY_IDS;
+  }
+}
+
+function getDiscoveryServerSnapshot(): string[] {
+  return EMPTY_DISCOVERY_IDS;
+}
+
 const DiscoveryJournalContext = createContext<DiscoveryJournalContextValue | null>(null);
 
-const STORAGE_KEY = "atlas-discovery-log";
-
 export function DiscoveryJournalProvider({ children }: { children: ReactNode }) {
-  const [discoveredIds, setDiscoveredIds] = useState<string[]>([]);
+  const discoveredIds = useSyncExternalStore(
+    subscribeDiscovery,
+    getDiscoverySnapshot,
+    getDiscoveryServerSnapshot
+  );
+
   const [activeToast, setActiveToast] = useState<DiscoveryToast | null>(null);
   const [isJournalOpen, setIsJournalOpen] = useState(false);
-
-  // Load initial progress from localStorage
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setDiscoveredIds(parsed);
-        }
-      }
-    } catch {
-      // Ignore storage errors
-    }
-  }, []);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Listen for 'J' key to toggle journal and Escape to close
   useEffect(() => {
@@ -159,31 +211,49 @@ export function DiscoveryJournalProvider({ children }: { children: ReactNode }) 
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isJournalOpen]);
 
-  const recordDiscovery = useCallback((id: string, title?: string, category?: string) => {
-    setDiscoveredIds((prev) => {
-      if (prev.includes(id)) return prev;
-      const updated = [...prev, id];
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch {
-        // Ignore storage errors
+  // Clean up toast timer on unmount
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
       }
-
-      // Find metadata for toast
-      const meta = ALL_MILESTONES.find((m) => m.id === id);
-      const toastTitle = title || meta?.title || id;
-      const toastCat = category || meta?.category || "Discovery";
-
-      setActiveToast({ id, title: toastTitle, category: toastCat });
-      setTimeout(() => {
-        setActiveToast((current) => (current?.id === id ? null : current));
-      }, 4500);
-
-      return updated;
-    });
+    };
   }, []);
 
-  const progressPercent = Math.round((discoveredIds.length / ALL_MILESTONES.length) * 100);
+  const recordDiscovery = useCallback((id: string, title?: string, category?: string) => {
+    if (!VALID_MILESTONE_IDS.has(id)) return;
+
+    const current = getDiscoverySnapshot();
+    if (!current.includes(id)) {
+      const updated = [...current, id];
+      saveDiscovery(updated);
+      if (typeof window !== "undefined") {
+        cachedRaw = window.localStorage.getItem("atlas-discovery-v1") || "";
+      }
+      cachedIds = updated;
+      notifyDiscoveryChange();
+    }
+
+    const meta = ALL_MILESTONES.find((m) => m.id === id);
+    const toastTitle = title || meta?.title || id;
+    const toastCat = category || meta?.category || "Discovery";
+
+    setActiveToast({ id, title: toastTitle, category: toastCat });
+
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = setTimeout(() => {
+      setActiveToast(null);
+    }, 4500);
+  }, []);
+
+  // Strict bounded progress calculation (cannot exceed 100%)
+  const progressData = useMemo(() => {
+    return computeDiscoveryProgress(discoveredIds);
+  }, [discoveredIds]);
+
+  const progressPercent = progressData.percent;
 
   const value = useMemo<DiscoveryJournalContextValue>(
     () => ({
@@ -206,7 +276,9 @@ export function DiscoveryJournalProvider({ children }: { children: ReactNode }) 
         <div className="discovery-toast" role="status" aria-live="polite">
           <div className="discovery-toast__icon">✦</div>
           <div className="discovery-toast__content">
-            <span className="discovery-toast__eyebrow">{activeToast.category.toUpperCase()} UNLOCKED</span>
+            <span className="discovery-toast__eyebrow">
+              {activeToast.category.toUpperCase()} UNLOCKED
+            </span>
             <strong className="discovery-toast__title">{activeToast.title}</strong>
           </div>
         </div>

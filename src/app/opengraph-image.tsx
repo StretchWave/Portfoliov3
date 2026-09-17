@@ -1,5 +1,8 @@
 import { ImageResponse } from "next/og";
 import { profile } from "@/data/profile";
+import { getAllProjects } from "@/features/portfolio/project-registry";
+import { WORLD_AREAS } from "@/data/world-areas";
+import { SITE_CONFIG } from "@/lib/site-config";
 
 export const alt = "Project Atlas — Mohammed Mishal | Systems & Interactive Worlds";
 export const size = {
@@ -9,6 +12,8 @@ export const size = {
 export const contentType = "image/png";
 
 export default async function OpenGraphImage() {
+  const projectCount = getAllProjects().length;
+  const districtCount = Object.keys(WORLD_AREAS).length;
   return new ImageResponse(
     (
       <div
@@ -105,14 +110,14 @@ export default async function OpenGraphImage() {
           }}
         >
           <div style={{ display: "flex", gap: "16px" }}>
-            <span style={{ fontSize: "16px", color: "#64748b" }}>9 Verified Projects</span>
+            <span style={{ fontSize: "16px", color: "#64748b" }}>{projectCount} Projects</span>
             <span style={{ fontSize: "16px", color: "#334155" }}>|</span>
-            <span style={{ fontSize: "16px", color: "#64748b" }}>4 Interactive Districts</span>
+            <span style={{ fontSize: "16px", color: "#64748b" }}>{districtCount} Interactive Districts</span>
             <span style={{ fontSize: "16px", color: "#334155" }}>|</span>
             <span style={{ fontSize: "16px", color: "#64748b" }}>WebGL & Web Audio</span>
           </div>
           <span style={{ fontSize: "16px", fontWeight: 700, color: "#38bdf8" }}>
-            mishal.dev / atlas
+            {SITE_CONFIG.url.replace(/^https?:\/\//, "")}
           </span>
         </div>
       </div>

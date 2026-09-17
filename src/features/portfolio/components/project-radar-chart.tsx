@@ -21,6 +21,8 @@ const AXES: AxisDefinition[] = [
   { key: "autonomy", label: "Autonomy", sublabel: "Zero-Cloud Independence" },
 ];
 
+const RING_LEVELS = [0.2, 0.4, 0.6, 0.8, 1.0];
+
 export function ProjectRadarChart({ projects }: ProjectRadarChartProps) {
   const [hoveredPoint, setHoveredPoint] = useState<{
     projectName: string;
@@ -36,9 +38,8 @@ export function ProjectRadarChart({ projects }: ProjectRadarChartProps) {
   const numAxes = AXES.length;
 
   // Concentric pentagon ring paths
-  const ringLevels = [0.2, 0.4, 0.6, 0.8, 1.0];
   const ringPaths = useMemo(() => {
-    return ringLevels.map((level) => {
+    return RING_LEVELS.map((level) => {
       const radius = R * level;
       const points = AXES.map((_, i) => {
         const angle = -Math.PI / 2 + (i * 2 * Math.PI) / numAxes;
@@ -248,6 +249,9 @@ export function ProjectRadarChart({ projects }: ProjectRadarChartProps) {
           </div>
         ))}
       </div>
+      <p className="radar-methodology-note" style={{ fontSize: "11px", color: "#64748b", textAlign: "center", margin: "8px 0 0" }}>
+        Note: Dimensions represent qualitative architectural evaluations (1-10 design rubric), not hardware benchmark measurements.
+      </p>
     </div>
   );
 }

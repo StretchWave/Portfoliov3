@@ -176,3 +176,39 @@
 - **Consequences:** Adding links (LinkedIn/resume) is a one-line change.
 - **Reconsider when:** A CMS replaces local content — the profile contract
   becomes the adapter boundary.
+
+## ADR-020 — Strict Code Snippet Evidence Classification
+
+- **Decision:** Every code snippet displayed in the project inspector carries an explicit `evidenceType`: `verified-source`, `adapted-example`, `conceptual`, or `simulation`.
+- **Reason:** Prevent misleading recruiters or engineers into believing conceptual architectures or simulated demos are deployed production code.
+- **Alternatives considered:** Generic code blocks with no metadata; calling all code "production".
+- **Consequences:** Code inspector renders badges detailing exact provenance and real file paths where verified.
+
+## ADR-021 — Versioned Persistence and useSyncExternalStore Hydration
+
+- **Decision:** Client storage is versioned (`atlas-settings-v1`, `atlas-discovery-v1`) with fault-tolerant parsing and synchronized via React 19's `useSyncExternalStore`.
+- **Reason:** Eliminate SSR hydration mismatches caused by reading localStorage on initial render, and prevent app crashes from corrupted stored data.
+- **Alternatives considered:** Scattered unversioned keys, reading localStorage synchronously in `useState()`.
+- **Consequences:** SSR and initial client render match identically; client data synchronizes across browser tabs smoothly.
+
+## ADR-022 — Audio Bus Gain Separation & Visibility Protection
+
+- **Decision:** All procedural Web Audio API nodes must route through Master Gain -> Ambient / Effects Gain buses. Sound effects can never connect directly to `ctx.destination`.
+- **Reason:** Enforce global volume controls and prevent audio blasts when tabs regain focus.
+- **Alternatives considered:** Ad-hoc volume scaling on individual oscillator nodes.
+- **Consequences:** Master, ambient, and effects volumes are respected uniformly.
+
+## ADR-023 — Canonical Site Configuration Single Source of Truth
+
+- **Decision:** One central site config (`SITE_CONFIG` in `src/lib/site-config.ts`) owns the canonical domain, title, and metadataBase.
+- **Reason:** Scattered hardcoded URLs drifted between `mishal.dev`, GitHub Pages, and local paths.
+- **Alternatives considered:** Per-file hardcoded metadata strings.
+- **Consequences:** Sitemap, robots, OpenGraph, JSON-LD, and layout derive from one single source of truth.
+
+## ADR-024 — Deterministic Automated Test & Assertion Harness
+
+- **Decision:** Implement pure-logic unit testing via `tsx --test` and convert E2E smoke tests into strict CDP assertions with browser console error capture.
+- **Reason:** Verify referential integrity, calculation determinism, and UI accessibility at build and CI time without regressions.
+- **Alternatives considered:** Informal manual clicking or diagnostic logs that exit 0 regardless of failures.
+- **Consequences:** CI and local testing fail loudly on any broken route, unhandled exception, or invalid reference.
+

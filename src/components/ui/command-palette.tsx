@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getAllProjects } from "@/features/portfolio/project-registry";
 import { WORLD_AREAS } from "@/data/world-areas";
 import type { WorldAreaId } from "@/types/portfolio";
-
 import { useDiscoveryJournal } from "@/features/portfolio/journal/discovery-journal-context";
+import { useModalFocusTrap } from "@/lib/modal-accessibility";
+import { soundManager } from "@/lib/audio-synthesizer";
 
 interface CommandItem {
   id: string;
@@ -26,41 +27,45 @@ export function CommandPalette({ onTravelToArea }: CommandPaletteProps) {
   const [search, setSearch] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const router = useRouter();
 
   const { recordDiscovery } = useDiscoveryJournal();
 
-  // Listen for Ctrl+K / Cmd+K
+  const handleOpen = useCallback(() => {
+    setSearch("");
+    setSelectedIndex(0);
+    setIsOpen(true);
+    soundManager.playBlip();
+    recordDiscovery("sys-command-palette");
+  }, [recordDiscovery]);
+
+  const handleClose = useCallback(() => {
+    setIsOpen(false);
+    setSearch("");
+    setSelectedIndex(0);
+  }, []);
+
+  // Global Ctrl+K / Cmd+K listener
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setIsOpen((prev) => !prev);
-      } else if (e.key === "Escape" && isOpen) {
-        e.preventDefault();
-        setIsOpen(false);
+        if (isOpen) {
+          handleClose();
+        } else {
+          handleOpen();
+        }
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen]);
+  }, [isOpen, handleOpen, handleClose]);
 
-  // Focus input on open & lock background scroll
-  useEffect(() => {
-    if (isOpen) {
-      recordDiscovery("sys-command-palette");
-      setSearch("");
-      setSelectedIndex(0);
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      setTimeout(() => inputRef.current?.focus(), 50);
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
-    }
-  }, [isOpen]);
+  // Focus trap and Escape key listener
+  useModalFocusTrap(isOpen, dialogRef, handleClose);
 
   // Build searchable items index
   const items = useMemo<CommandItem[]>(() => {
@@ -112,7 +117,7 @@ export function CommandPalette({ onTravelToArea }: CommandPaletteProps) {
         id: "page-resume",
         category: "Pages",
         title: "Engineering Dossier & Resume",
-        subtitle: "2-page print-optimized resume, JSON Resume export, and ATS plaintext",
+        subtitle: "Print-optimized resume, JSON Resume export, and ATS-friendly plaintext",
         action: () => router.push("/resume"),
         keywords: ["resume", "cv", "dossier", "print", "pdf", "ats", "json", "education"],
       },
@@ -158,9 +163,8 @@ export function CommandPalette({ onTravelToArea }: CommandPaletteProps) {
           p.summary,
           p.category,
           ...p.technologies,
-          ...p.skills,
-          p.status,
-          p.priority,
+          ...(p.skills || []),
+          ...(p.secondaryCategories || []),
         ],
       });
     });
@@ -168,57 +172,72 @@ export function CommandPalette({ onTravelToArea }: CommandPaletteProps) {
     return list;
   }, [router, onTravelToArea]);
 
-  // Filter items based on query
+  // Filter items based on user query
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return items;
 
+    const terms = q.split(/\s+/).filter(Boolean);
+
     return items.filter((item) => {
-      if (item.title.toLowerCase().includes(q)) return true;
-      if (item.subtitle.toLowerCase().includes(q)) return true;
-      if (item.keywords?.some((k) => k.toLowerCase().includes(q))) return true;
-      return false;
+      const matchCorpus = [
+        item.title,
+        item.subtitle,
+        item.category,
+        ...(item.keywords || []),
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return terms.every((term) => matchCorpus.includes(term));
     });
   }, [items, search]);
 
-  // Handle keyboard navigation inside the list
-  function handleInputKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setSelectedIndex((prev) => (prev + 1) % Math.max(1, filteredItems.length));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSelectedIndex((prev) => (prev - 1 + filteredItems.length) % Math.max(1, filteredItems.length));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      const selected = filteredItems[selectedIndex];
-      if (selected) {
-        selected.action();
-        setIsOpen(false);
-      }
-    }
-  }
+  const activeItem = filteredItems[selectedIndex];
 
   // Scroll active item into view
   useEffect(() => {
     if (!listRef.current) return;
-    const activeEl = listRef.current.querySelector<HTMLElement>(".command-item--active");
+    const activeEl = listRef.current.querySelector<HTMLElement>("[aria-selected='true']");
     if (activeEl) {
       activeEl.scrollIntoView({ block: "nearest" });
     }
   }, [selectedIndex]);
 
+  function handleInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (filteredItems.length > 0) {
+        setSelectedIndex((prev) => (prev + 1) % filteredItems.length);
+        soundManager.playTactileClick();
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (filteredItems.length > 0) {
+        setSelectedIndex((prev) => (prev - 1 + filteredItems.length) % filteredItems.length);
+        soundManager.playTactileClick();
+      }
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeItem) {
+        soundManager.playChime();
+        activeItem.action();
+        handleClose();
+      }
+    }
+  }
+
   return (
     <>
-      {/* Optional Trigger Pill for Header / Navigation */}
+      {/* Trigger Pill for Header / Navigation */}
       <button
         type="button"
         className="command-palette-trigger"
-        onClick={() => setIsOpen(true)}
+        onClick={handleOpen}
         title="Search projects, skills & 3D districts (Ctrl+K)"
-        aria-label="Open search command palette"
+        aria-label="Open search command palette (Ctrl+K)"
       >
-        <span className="search-icon">🔍</span>
+        <span className="search-icon" aria-hidden="true">🔍</span>
         <span className="search-label">Quick Search...</span>
         <kbd>Ctrl K</kbd>
       </button>
@@ -226,18 +245,28 @@ export function CommandPalette({ onTravelToArea }: CommandPaletteProps) {
       {isOpen ? (
         <div
           className="command-backdrop"
-          onClick={() => setIsOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="command-input"
+          onClick={handleClose}
+          role="presentation"
         >
-          <div className="command-dialog" onClick={(e) => e.stopPropagation()}>
+          <div
+            ref={dialogRef}
+            className="command-dialog"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Command Palette Quick Search"
+          >
             <div className="command-input-bar">
-              <span className="command-search-icon">🔍</span>
+              <span className="command-search-icon" aria-hidden="true">🔍</span>
               <input
                 ref={inputRef}
                 id="command-input"
                 type="text"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded="true"
+                aria-controls="command-results-list"
+                aria-activedescendant={activeItem ? activeItem.id : undefined}
                 className="command-input"
                 value={search}
                 onChange={(e) => {
@@ -250,40 +279,59 @@ export function CommandPalette({ onTravelToArea }: CommandPaletteProps) {
               <button
                 type="button"
                 className="command-esc-chip"
-                onClick={() => setIsOpen(false)}
+                onClick={handleClose}
+                aria-label="Close command palette (Escape)"
               >
                 ESC
               </button>
             </div>
 
-            <div ref={listRef} className="command-list">
+            <ul
+              ref={listRef}
+              id="command-results-list"
+              role="listbox"
+              aria-label="Search results"
+              className="command-list"
+            >
               {filteredItems.length === 0 ? (
-                <div className="command-empty">
+                <li className="command-empty" role="status">
                   No matching projects, skills, or districts found for &ldquo;{search}&rdquo;
-                </div>
+                </li>
               ) : (
-                filteredItems.map((item, idx) => (
-                  <div
-                    key={item.id}
-                    className={`command-item ${idx === selectedIndex ? "command-item--active" : ""}`}
-                    onClick={() => {
-                      item.action();
-                      setIsOpen(false);
-                    }}
-                    onMouseEnter={() => setSelectedIndex(idx)}
-                  >
-                    <div className="command-item__left">
-                      <span className="command-item__category">{item.category}</span>
-                      <strong className="command-item__title">{item.title}</strong>
-                      <span className="command-item__subtitle">{item.subtitle}</span>
-                    </div>
-                    <span className="command-item__arrow">→</span>
-                  </div>
-                ))
+                filteredItems.map((item, idx) => {
+                  const isSelected = idx === selectedIndex;
+                  return (
+                    <li
+                      key={item.id}
+                      id={item.id}
+                      role="option"
+                      aria-selected={isSelected}
+                      className={`command-item-wrapper ${isSelected ? "command-item--active" : ""}`}
+                    >
+                      <button
+                        type="button"
+                        className="command-item"
+                        onClick={() => {
+                          soundManager.playChime();
+                          item.action();
+                          handleClose();
+                        }}
+                        onMouseEnter={() => setSelectedIndex(idx)}
+                      >
+                        <div className="command-item__left">
+                          <span className="command-item__category">{item.category}</span>
+                          <strong className="command-item__title">{item.title}</strong>
+                          <span className="command-item__subtitle">{item.subtitle}</span>
+                        </div>
+                        <span className="command-item__arrow" aria-hidden="true">→</span>
+                      </button>
+                    </li>
+                  );
+                })
               )}
-            </div>
+            </ul>
 
-            <div className="command-footer">
+            <div className="command-footer" aria-hidden="true">
               <span><kbd>↑</kbd> <kbd>↓</kbd> to navigate</span>
               <span><kbd>↵</kbd> to select</span>
               <span><kbd>esc</kbd> to close</span>

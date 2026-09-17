@@ -1,17 +1,22 @@
 "use client";
 
+import { useRef } from "react";
 import Link from "next/link";
 import { useDiscoveryJournal, ALL_MILESTONES } from "./discovery-journal-context";
+import { useModalFocusTrap } from "@/lib/modal-accessibility";
 
 export function DiscoveryJournalModal() {
   const { isJournalOpen, setIsJournalOpen, discoveredIds, totalMilestones, progressPercent } =
     useDiscoveryJournal();
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useModalFocusTrap(isJournalOpen, modalRef, () => setIsJournalOpen(false));
 
   if (!isJournalOpen) return null;
 
   function getRank(percent: number): string {
-    if (percent >= 100) return "Master Systems Architect";
-    if (percent >= 75) return "Senior Architecture Auditor";
+    if (percent >= 100) return "Comprehensive Explorer";
+    if (percent >= 75) return "Advanced Systems Explorer";
     if (percent >= 40) return "Systems Investigator";
     return "Curious Explorer";
   }
@@ -22,11 +27,16 @@ export function DiscoveryJournalModal() {
     <div
       className="controls-modal-backdrop"
       onClick={() => setIsJournalOpen(false)}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="journal-modal-title"
+      role="presentation"
     >
-      <div className="discovery-journal-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={modalRef}
+        className="discovery-journal-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="journal-modal-title"
+      >
         {/* Modal Header */}
         <div className="discovery-journal-modal__header">
           <div>
@@ -37,7 +47,7 @@ export function DiscoveryJournalModal() {
             type="button"
             className="controls-modal__close"
             onClick={() => setIsJournalOpen(false)}
-            aria-label="Close discovery journal"
+            aria-label="Close discovery journal (Escape)"
           >
             ×
           </button>
@@ -54,7 +64,7 @@ export function DiscoveryJournalModal() {
             </div>
             <strong className="discovery-percentage">{progressPercent}%</strong>
           </div>
-          <div className="discovery-progress-track">
+          <div className="discovery-progress-track" role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100} aria-label="Discovery progress">
             <div
               className="discovery-progress-fill"
               style={{ width: `${progressPercent}%` }}
@@ -88,7 +98,7 @@ export function DiscoveryJournalModal() {
                           isUnlocked ? "discovery-item--unlocked" : "discovery-item--locked"
                         }`}
                       >
-                        <div className="discovery-item__icon">
+                        <div className="discovery-item__icon" aria-hidden="true">
                           {isUnlocked ? "✓" : "○"}
                         </div>
                         <div className="discovery-item__info">

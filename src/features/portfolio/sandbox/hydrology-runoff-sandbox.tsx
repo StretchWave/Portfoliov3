@@ -3,11 +3,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { soundManager } from "@/lib/audio-synthesizer";
 
-const GRID_SIZE = 24;
+export const GRID_SIZE = 24;
 
 export type TerrainPreset = "valley" | "basin" | "coastal" | "plain";
 
-function generateTerrain(preset: TerrainPreset): Float32Array {
+export function generateTerrain(preset: TerrainPreset): Float32Array {
   const elev = new Float32Array(GRID_SIZE * GRID_SIZE);
 
   for (let r = 0; r < GRID_SIZE; r++) {

@@ -7,7 +7,7 @@ export type CombatActionType = "light_jab" | "heavy_cleave" | "parry" | "dodge_r
 
 export type FramePhase = "neutral" | "startup" | "active" | "recovery" | "iframe" | "hitstun";
 
-interface ActionDefinition {
+export interface ActionDefinition {
   id: CombatActionType;
   name: string;
   totalFrames: number;
@@ -22,7 +22,7 @@ interface ActionDefinition {
   description: string;
 }
 
-const COMBAT_ACTIONS: Record<CombatActionType, ActionDefinition> = {
+export const COMBAT_ACTIONS: Record<CombatActionType, ActionDefinition> = {
   light_jab: {
     id: "light_jab",
     name: "Light Thrust",
@@ -91,6 +91,23 @@ const COMBAT_ACTIONS: Record<CombatActionType, ActionDefinition> = {
   },
 };
 
+export function getPhaseForFrame(frame: number, act: ActionDefinition): FramePhase {
+  if (frame === 0) return "neutral";
+  if (act.id === "poise_break") return "hitstun";
+
+  if (act.iframes && frame >= act.iframes.start && frame <= act.iframes.end) {
+    return "iframe";
+  }
+
+  if (frame <= act.startup) {
+    return "startup";
+  }
+  if (frame <= act.startup + act.active) {
+    return "active";
+  }
+  return "recovery";
+}
+
 export function CombatFsmSandbox() {
   const [activeActionId, setActiveActionId] = useState<CombatActionType>("light_jab");
   const [currentFrame, setCurrentFrame] = useState<number>(0);
@@ -98,27 +115,6 @@ export function CombatFsmSandbox() {
 
   const action = COMBAT_ACTIONS[activeActionId];
   const totalFrames = action.totalFrames;
-
-  // Determine active frame phase
-  const getPhaseForFrame = useCallback(
-    (frame: number, act: ActionDefinition): FramePhase => {
-      if (frame === 0) return "neutral";
-      if (act.id === "poise_break") return "hitstun";
-
-      if (act.iframes && frame >= act.iframes.start && frame <= act.iframes.end) {
-        return "iframe";
-      }
-
-      if (frame <= act.startup) {
-        return "startup";
-      }
-      if (frame <= act.startup + act.active) {
-        return "active";
-      }
-      return "recovery";
-    },
-    []
-  );
 
   const currentPhase = getPhaseForFrame(currentFrame, action);
 

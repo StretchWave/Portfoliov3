@@ -5,6 +5,7 @@ import type { PortfolioProject, ProjectCategory, ProjectPriority } from "@/types
 import { soundManager } from "@/lib/audio-synthesizer";
 import { ProjectCard } from "./project-card";
 import { ProjectComparisonModal } from "./project-comparison-modal";
+import { matchesProjectSearch } from "@/features/portfolio/project-search";
 
 const filterGroups: ReadonlyArray<{ id: string; label: string; categories: readonly ProjectCategory[] }> = [
   { id: "all", label: "All Categories", categories: [] },
@@ -54,15 +55,9 @@ export function ProjectFilter({ projects }: ProjectFilterProps) {
       result = result.filter((p) => p.priority === activePriority);
     }
 
-    // Search query
+    // Unified search query
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.summary.toLowerCase().includes(q) ||
-          p.technologies.some((t) => t.toLowerCase().includes(q))
-      );
+      result = result.filter((p) => matchesProjectSearch(p, searchQuery));
     }
 
     // Sorting
@@ -89,18 +84,18 @@ export function ProjectFilter({ projects }: ProjectFilterProps) {
   }
 
   return (
-    <div className="project-explorer-root">
-      {/* Top Search & Sorting Controls */}
-      <div className="project-filter-toolbar">
-        <div className="project-filter-search">
-          <span className="search-prefix" aria-hidden="true">🔍</span>
+    <section className="project-filter" aria-label="Project filtering and search">
+      {/* Top Bar: Search + Compare Button + Sort Dropdown */}
+      <div className="project-filter-topbar">
+        <div className="project-search-wrap">
+          <span className="search-icon" aria-hidden="true">🔍</span>
           <input
             type="text"
             className="project-search-input"
-            placeholder="Search projects by name, technology (e.g. Python, Flutter, Web Audio)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Search systems catalog"
+            placeholder="Search projects, technologies, or keywords..."
+            aria-label="Search projects by name, technologies, or keywords"
           />
           {searchQuery ? (
             <button
@@ -137,7 +132,7 @@ export function ProjectFilter({ projects }: ProjectFilterProps) {
             >
               <option value="priority">Priority (Flagships First)</option>
               <option value="name">Alphabetical (A-Z)</option>
-              <option value="tech">Tech Stack Depth</option>
+              <option value="tech">Technology Count</option>
             </select>
           </div>
         </div>
@@ -206,6 +201,6 @@ export function ProjectFilter({ projects }: ProjectFilterProps) {
         isOpen={isComparisonOpen}
         onClose={() => setIsComparisonOpen(false)}
       />
-    </div>
+    </section>
   );
 }

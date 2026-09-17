@@ -1,112 +1,149 @@
-# Architecture
+# Project Atlas Architecture
 
-This document describes the implemented architecture, not an aspirational replacement architecture.
+This document describes the implemented architecture of Project Atlas. All claims here reflect the actual codebase.
 
-## Application topology
+---
+
+## 1. High-Level Topology
 
 ```mermaid
 flowchart TD
-  A[Next.js App Router] --> B[Conventional server-rendered routes]
-  A --> C[/interactive server route]
-  B --> D[Portfolio registry]
-  C --> E[Client launch shell]
-  E -->|explicit button click| F[Dynamic 3D experience chunk]
-  F --> G[Canvas]
-  G --> H[Atlas hub (reference area)]
-  H --> I[Explorer controller]
-  H --> J[Interaction detector]
-  H --> K[Generic exhibit registry]
-  D --> K
-  J --> L[Interaction provider]
-  K --> L
-  L --> M[Project information panel]
-  D --> M
+  A[Next.js App Router] --> B[Conventional Static Routes (SSG)]
+  A --> C[/interactive Route]
+  B --> D[Central Project Registry]
+  B --> E[Versioned Client Storage Layer]
+  C --> F[Client Launch Shell]
+  F -->|explicit user gesture| G[Lazy 3D Experience Chunk]
+  G --> H[WorldArea Router & Transition Engine]
+  H --> I[Central Hub]
+  H --> J[Software District]
+  H --> K[Intelligence Observatory]
+  H --> L[Creative Workshop]
+  G --> M[Procedural Audio Synthesizer]
+  G --> N[Interaction System]
+  N --> O[Project Information Panel]
+  D --> O
 ```
 
-## Next.js architecture
+---
 
-`src/app` follows the App Router. Conventional pages are Server Components by default and read local, synchronous project records through `features/portfolio/project-registry.ts`. The one client boundary for the entry page is `src/app/interactive/interactive-portfolio-shell.tsx`.
+## 2. Next.js Routing & Bundle Isolation
 
-The shell does **not** statically import Three.js, React Three Fiber, or any `src/three` module. In its click handler it uses `import("@/three/experience/interactive-experience")`; that keeps the engine and world out of conventional page bundles and avoids loading them merely for visiting `/interactive`.
+1. **Zero Three.js Leakage on Conventional Routes**:
+   - Conventional portfolio routes (`/`, `/about`, `/projects`, `/skills`, `/sandbox`, `/resume`, `/projects/[slug]`) do **not** import Three.js, React Three Fiber, or `@react-three/drei`.
+   - The 3D engine is strictly isolated behind dynamic `import("@/three/experience/interactive-experience")` triggered only when the visitor explicitly clicks "Launch" on `/interactive`.
+2. **Static Site Generation (SSG)**:
+   - All known project pages (`/projects/[slug]`) and OpenGraph card routes implement `generateStaticParams()` to pre-render static HTML at build time.
+   - Absent project slugs trigger Next.js `notFound()`.
+3. **Canonical Site Source of Truth**:
+   - `SITE_CONFIG` (`src/lib/site-config.ts`) defines the single canonical URL (`https://mohammedmishal.dev`), metadataBase, and OpenGraph defaults, eliminating scattered hardcoded domain strings.
 
-Route metadata remains in server `page.tsx` files. The dynamic project route awaits the Next.js 16 `params` promise and uses `notFound()` for an absent project.
+---
 
-## Project data flow
+## 3. Project Registry & Referential Integrity
+
+All project facts are defined in `src/data/projects/` and indexed via `src/features/portfolio/project-registry.ts`.
+- **Validation**: `validateProjectRegistry()` runs referential integrity checks verifying unique project IDs, unique slugs, valid related project IDs, and valid exhibit coordinates.
+- **Derived Metrics**: Functions such as `getVerifiedProjects()`, `getProjectCount()`, `getVerifiedProjectCount()`, `getVerifiedSkills()`, and `getProjectTechnologies()` derive metrics dynamically. Hardcoded counts across headers, footers, and OG cards have been eliminated.
+- **Honest Evidence Categorization**:
+  - `verified-source`: Direct extract from an existing, verified public repository.
+  - `adapted-example`: Simplified or adapted architecture snippet demonstrating system patterns.
+  - `conceptual`: Purely conceptual designs (e.g. Stance Combat PvP).
+  - `simulation`: Simulated demonstration environments (e.g. command console).
+
+---
+
+## 4. World District System & Lazy Loading
+
+Atlas features four thematic 3D environments:
+1. **Atlas Central Hub** (`atlas-hub`): Central exhibition rotunda and portal transit nexus.
+2. **Software Systems District** (`software-district`): Server architecture and native systems laboratory.
+3. **Intelligent Systems Observatory** (`intelligence-observatory`): Flood prediction, telemetry, and geospatial decision-support deck.
+4. **Creative & Interactive Workshop** (`creative-workshop`): Mechanics arena, audio DSP, and interactive tools space.
+
+### District Lifecycle & Memory Model
+- **Lazy Mounting**: District modules are loaded lazily via dynamic imports. Only the currently active district component is mounted in the Three.js scene graph.
+- **Runtime Caching**: When transitioning between districts, imported JS chunks remain cached in browser memory by the Webpack/Turbopack runtime; unmounted Three.js geometries and materials are disposed of to manage WebGL context load.
+- **Race Condition Prevention**: `travelToArea()` in `area-context.tsx` uses transition cancellation tokens and active timer clearance to guarantee deterministic resolution during rapid portal inputs.
+
+---
+
+## 5. Audio Bus Architecture
+
+The procedural Web Audio API synthesizer (`src/lib/audio-synthesizer.ts`) generates 100% of portfolio sounds procedurally with 0 external audio asset downloads.
 
 ```text
-src/data/profile.ts ------------------------> home / about / footer
-src/data/skills.ts ---> /skills page, project detail reverse lookup
-src/data/projects/<record>.ts
-  -> src/data/projects/index.ts (single registration point)
-    -> project-registry query API
-       -> conventional cards/details (priority-aware)
-       -> exhibit registry
-          -> ProjectExhibit registration
-             -> InteractionProvider event
-                -> InteractiveExperience resolves project ID
-                   -> ProjectInformationPanel
+AudioContext
+     │
+Master Gain (volume clamp: 0.0 - 1.0)
+     ├── Ambient Gain Bus
+     │        └── Procedural District Soundscapes (sine / triangle sub-basses)
+     └── Effects Gain Bus
+              ├── Spatial Audio Panner (StereoPannerNode + inverse-distance attenuation)
+              └── UI / Gameplay Sound Effects (clicks, chimes, combat cues, shutters)
+                       │
+                  Destination (hardware audio output)
 ```
 
-No 3D component imports a named project record. The one place that knows which records exist is `src/data/projects/index.ts`. Profile and skills content is equally centralized: pages import the single `profile` object and the `profileSkills` registry instead of duplicating biography or evidence text.
+- **Audio Safety**: All sounds route through `this.getEffectsDestination()`, strictly honoring master and effects volume levels. No node connects directly to `ctx.destination`.
+- **Visibility Safety**: Browser `visibilitychange` events smoothly fade ambient gains without resetting user preferences or blasting audio on tab restore.
 
-## 3D architecture
+---
 
-`InteractiveExperience` is the composition root for the lazy chunk. It owns only the selected project ID and translates generic `InteractionEvent` values into portfolio UI state. It composes:
+## 6. Fault-Tolerant Client Persistence Layer
 
-- `PortfolioCanvas`: the Canvas configuration and the Suspense loading boundary.
-- `WorldAreas` (`src/three/world/world-areas.tsx`): the world composition seam; today it mounts only the Atlas Hub, and it is the documented place where future areas become dynamically imported modules.
-- `AtlasHub` (`src/three/world/areas/atlas-hub/`): the first polished reference environment — a bounded exhibition hall with its own architecture, wayfinding, bounds, and area lighting.
-- `WorldEnvironment` and the environment language (`src/three/world/environment/`): shared materials, architectural modules, and lighting fixtures that all areas reuse.
-- `ExplorerController`: drag-to-look camera control and bounded keyboard movement; the mounted area passes its own `bounds`.
-- `InteractionProvider`, `InteractionDetector`, and `InteractionHud`: generic focus and activation infrastructure.
-- `ExhibitRegistry` and `ProjectExhibit`: data-configured project displays rendered as generic plinths.
-- `ProjectInformationPanel`: overlay presentation of a selected project.
+Client settings and discovery journal state are managed by versioned storage schemas (`src/lib/storage.ts`):
+- `atlas-settings-v1`: Sound enabled, master/ambient/effects volume, sound profile, spatial toggle, haptics toggle.
+- `atlas-discovery-v1`: Discovered milestone IDs and timestamps.
+- **Fault Tolerance**: Parsing functions (`parseSettings`, `parseDiscovery`) validate types, clamp numbers, and discard corrupted entries without throwing. Legacy unversioned keys are migrated automatically.
+- **Hydration Safety**: React 19 `useSyncExternalStore` synchronizes client-side discovery progress across browser tabs and avoids SSR hydration mismatches.
 
-### World area boundaries
+---
 
-```text
-src/three/world/
-  world-areas.tsx            # composition seam: current areas + future dynamic-import router
-  environment/               # reusable environment language
-    environment-materials.ts # shared material palette (lazy singletons)
-    environment-lighting.tsx # emissive fixture components (CeilingPanelLight, LightRibbon)
-    architectural-modules.tsx# WallSegment, Column, FrameRib
-    world-environment.tsx    # global atmosphere, sun/hemisphere, ground + grid
-  areas/
-    atlas-hub/               # reference environment (first polished area)
-      atlas-hub.tsx          # area composition root + HUB_BOUNDS
-      hub-architecture.tsx   # hall shell: walls, gantry, entrance, status wall
-      hub-navigation.tsx     # spine, threshold, exhibit chevrons
+## 7. Accessibility & Dialog Mechanics
+
+- **Modal Primitives**: `useModalFocusTrap` (`src/lib/modal-accessibility.ts`) enforces focus trapping, background click handling, Escape key dismissal, and returns focus to the triggering element upon close.
+- **Systems Topology Graph**: `SystemsTopologyGraph` features valid accessible names, SVG descriptions, keyboard navigation (`Enter` / `Space`), and screen-reader alternatives.
+- **Command Palette**: Follows the accessible combobox/listbox pattern with ARIA roles, active item indicators, and global keyboard shortcuts.
+- **Centralized Shortcuts**: `src/lib/keyboard-shortcuts.ts` centralizes all portfolio shortcuts and prevents hotkeys from firing while the user is typing in forms or search inputs.
+- **Reduced Motion**: All animations and particle systems respect CSS `@media (prefers-reduced-motion: reduce)`.
+
+---
+
+## 8. Atlas Studio Visual Authoring Architecture
+
+Atlas Studio (`/studio`) provides a desktop visual authoring environment for spatial world scenes, decoupling 3D layout, lighting, and environmental properties from React JSX components.
+
+```
+                    Canonical Atlas Data
+               (TypeScript files in src/data/)
+                          |
+           +--------------+--------------+
+           |                             |
+           v                             v
+     Atlas Studio                   Web Runtime
+   /studio route                 /interactive route
+   edit / preview               render / interact
+           |                             |
+           +------------+----------------+
+                         |
+                  Conventional Site
+                /, /about, /projects...
 ```
 
-Rules:
+### Key Architectural Invariants
 
-- Every area is an independently mountable module with its own bounds, architecture, and (in future) loading boundary.
-- Areas never append to each other; `WorldAreas` is the only place that knows which areas exist.
-- Areas share the environment language and must not invent new structural materials.
-- The single shadow-casting directional light lives in `WorldEnvironment`; areas add only bounded point lights and emissive fixtures.
-
-### Lighting hierarchy
-
-The scene follows one global environment plus per-area, per-exhibit, and accent lighting (detailed in `docs/VISUAL_DIRECTION.md`). The hub totals about six lights: one hemisphere, one shadow-casting directional, two area fill points, and one accent point per exhibit.
-
-The scene currently uses proximity detection. `InteractionDetector` checks the camera against registered target positions each frame and picks the nearest in-range target. A future raycast or line-of-sight detector should call the provider’s `updateFocusFromPosition` equivalent rather than changing exhibit or panel code.
-
-## State boundaries
-
-No global state library is used. The conventional routes are data-driven server renders. The interactive experience has a narrowly scoped context for target registration/focus and a local selected-project ID. This is sufficient because no current state needs to survive outside the mounted experience.
-
-## Future extension points
-
-| Need | Existing extension point |
-| --- | --- |
-| New project | Typed record + registration entry |
-| Rich conventional case study | Optional `ProjectCaseStudy` content block rendered by generic detail sections |
-| New category/status | Union in `src/types/portfolio.ts` |
-| New exhibit appearance | New component selected by `ExhibitPresentation` inside `src/three/exhibits` |
-| New interaction behavior | New `InteractionEvent` variant and handler in the composition root |
-| New demo type | `DemonstrationConfiguration` discriminated union |
-| New world district | A mountable `three/world/<area>` module behind a loading boundary |
-| CMS/API | An adapter preserving registry query contracts |
-
-Do not collapse those boundaries merely to ship a project-specific feature; add the feature at the narrowest appropriate extension point.
+1. **Single Source of Truth**:
+   - Scene configurations live in `src/data/scenes/` (`as const satisfies AreaSceneDefinition`).
+   - `WorldEnvironment`, `AtlasHub`, `SoftwareDistrict`, `IntelligenceObservatory`, and `CreativeWorkshop` consume canonical data definitions via the universal `DataDrivenArea` component.
+   - Area metadata (`WORLD_AREAS`) is derived directly from scene definitions.
+2. **Strict Bundle Isolation**:
+   - `/studio` is an independent client route with SSR disabled (`dynamic(() => import("./studio-app"), { ssr: false })`).
+   - Studio components, editor state, and TransformControls are never imported by conventional routes or the `/interactive` runtime.
+3. **Pure-Logic Scene Validation**:
+   - `src/lib/scene-validation.ts` validates ID uniqueness, bounds sanity, spawn coordinates, portal targets, and light count budgets without any React or Three.js dependencies.
+4. **Snapshot-Based Undo/Redo Engine**:
+   - `src/app/studio/state/history.ts` manages an immutable stack of scene snapshots.
+   - Gizmo drag events defer history commits until mouse-up to prevent per-frame snapshot bloat.
+5. **Bi-Directional Scene Pipeline**:
+   - Authors can visually position objects, modify lighting, export scene JSON, and synchronize changes back to version-controlled TypeScript definitions using `scripts/scene-to-ts.ts`.

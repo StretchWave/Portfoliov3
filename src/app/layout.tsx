@@ -1,13 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { profile } from "@/data/profile";
+import { SITE_CONFIG } from "@/lib/site-config";
 import { DiscoveryJournalProvider } from "@/features/portfolio/journal/discovery-journal-context";
 import { DiscoveryJournalModal } from "@/features/portfolio/journal/discovery-journal-modal";
 
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://mishal.dev"),
+  metadataBase: new URL(SITE_CONFIG.url),
   title: {
     default: "Project Atlas | Mohammed Mishal",
     template: "%s | Project Atlas",
