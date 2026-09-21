@@ -17,10 +17,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const { scene, clientRevision, activeAreaId } = body as {
+    const { scene, clientRevision, activeAreaId, appContent, force } = body as {
       scene: AtlasSceneDefinition;
       clientRevision?: number;
       activeAreaId?: string;
+      appContent?: import("@/types/content").AppContent;
+      force?: boolean;
     };
 
     if (!scene || typeof scene !== "object" || !scene.areas) {
@@ -37,6 +39,8 @@ export async function POST(request: Request) {
     const result = saveSceneToProjectSource(scene, {
       expectedRevision: clientRevision,
       targetAreaId: activeAreaId as any,
+      appContent,
+      force: Boolean(force),
     });
 
     if (!result.success) {

@@ -19,12 +19,15 @@ import { StudioToolbar } from "./studio-toolbar";
 import { StudioTopBar } from "./studio-top-bar";
 import { StudioViewport } from "./studio-viewport";
 import { ValidationPanel } from "./validation-panel";
-import { ViewportContextMenu } from "./viewport-context-menu";
+import { ViewportContextMenu, type AddObjectType } from "./viewport-context-menu";
 import { ShortcutsDialog } from "./shortcuts-dialog";
 import { SnapCursorMenu } from "./snap-cursor-menu";
 import { RenameDialog } from "./rename-dialog";
 import { ChangeReviewDialog } from "./change-review-dialog";
 import { RecoveryPromptDialog } from "./recovery-prompt-dialog";
+import { RoomManagementDialog } from "./room-management-dialog";
+import { AppContentEditor } from "./app-content-editor";
+import { ImportImagePlaneDialog } from "./import-image-plane-dialog";
 import { handleStudioKeyDown } from "../systems/studio-input-router";
 import type { StudioCommandContext } from "../systems/studio-commands";
 
@@ -39,6 +42,7 @@ export function StudioLayout() {
     duplicateObject,
     setActivePanel,
     setEditorMode,
+    setAppContentOpen,
     selectedObject,
     selectedObjects,
     selectObject,
@@ -64,6 +68,8 @@ export function StudioLayout() {
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isSnapMenuOpen, setIsSnapMenuOpen] = useState(false);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const [isRoomManagementOpen, setIsRoomManagementOpen] = useState(false);
+  const [isImagePlaneDialogOpen, setIsImagePlaneDialogOpen] = useState(false);
   const [previewProjectId, setPreviewProjectId] = useState<string | null>(null);
   const [previewInfo, setPreviewInfo] = useState<{ title: string; description?: string } | null>(null);
   const [showGrid, setShowGrid] = useState(true);
@@ -125,7 +131,11 @@ export function StudioLayout() {
   }, []);
 
   const handleAddObject = useCallback(
-    (type: "point-light" | "wall" | "column" | "platform" | "portal" | "ring") => {
+    (type: AddObjectType) => {
+      if (type === "image-plane") {
+        setIsImagePlaneDialogOpen(true);
+        return;
+      }
       const suffix = Date.now().toString(36).slice(-4);
       if (type === "point-light") {
         addObject({
@@ -345,6 +355,9 @@ export function StudioLayout() {
         onOpenSceneData={() => setIsImportExportOpen(true)}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
+        onOpenRoomManagement={() => setIsRoomManagementOpen(true)}
+        onOpenAppContent={() => setAppContentOpen(true)}
+        onOpenImportImagePlane={() => setIsImagePlaneDialogOpen(true)}
       />
 
       {/* Tier 2: Secondary Toolbar (Tools, Space, Grid, Focus, Panel Toggles) */}
@@ -367,7 +380,7 @@ export function StudioLayout() {
               style={{ width: leftPanelWidth }}
               className="flex h-full min-h-0 shrink-0 flex-col overflow-hidden"
             >
-              <SceneHierarchy />
+              <SceneHierarchy onOpenImportImagePlane={() => setIsImagePlaneDialogOpen(true)} />
             </div>
 
             {/* Left Draggable Resizer */}
@@ -574,6 +587,7 @@ export function StudioLayout() {
           }}
           onDeselect={() => selectObject(null)}
           onAddObject={handleAddObject}
+          onOpenImportImagePlane={() => setIsImagePlaneDialogOpen(true)}
         />
       )}
 
@@ -593,10 +607,15 @@ export function StudioLayout() {
         <ChangeReviewDialog
           savedScene={state.savedScene}
           currentScene={state.scene}
+          errorMessage={saveError}
           onClose={() => setIsReviewOpen(false)}
           onSave={async () => {
-            await saveToProject();
-            setIsReviewOpen(false);
+            const ok = await saveToProject();
+            if (ok) setIsReviewOpen(false);
+          }}
+          onForceSave={async () => {
+            const ok = await saveToProject({ force: true });
+            if (ok) setIsReviewOpen(false);
           }}
           isSaving={saveStatus === "saving"}
         />
@@ -664,6 +683,23 @@ export function StudioLayout() {
           </div>
         </div>
       )}
+      {/* Room Management Modal */}
+      <RoomManagementDialog
+        isOpen={isRoomManagementOpen}
+        onClose={() => setIsRoomManagementOpen(false)}
+      />
+
+      {/* App Content Authoring Modal */}
+      <AppContentEditor
+        isOpen={state.isAppContentOpen}
+        onClose={() => setAppContentOpen(false)}
+      />
+
+      {/* Import Image as Plane Dialog */}
+      <ImportImagePlaneDialog
+        isOpen={isImagePlaneDialogOpen}
+        onClose={() => setIsImagePlaneDialogOpen(false)}
+      />
     </div>
   );
 }

@@ -10,7 +10,7 @@ import { getEnvironmentMaterials } from "@/three/world/environment/environment-m
 import type { WorldAreaId } from "@/types/portfolio";
 
 export interface PortalGatewayProps {
-  targetArea: WorldAreaId;
+  targetArea: WorldAreaId | string;
   targetLabel: string;
   subtitle?: string;
   position: WorldPosition;

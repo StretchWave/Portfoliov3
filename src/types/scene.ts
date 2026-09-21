@@ -49,6 +49,7 @@ export interface InteractionAction {
     | "show-project"
     | "show-information"
     | "teleport-player"
+    | "teleport-to-room"
     | "open-district"
     | "play-sound"
     | "play-animation"
@@ -60,7 +61,9 @@ export interface InteractionAction {
   title?: string;
   description?: string;
   category?: string;
-  targetArea?: WorldAreaId;
+  targetArea?: WorldAreaId | string;
+  targetRoomId?: string;
+  targetSpawnPointId?: string;
   teleportPointId?: string;
   soundId?: string;
   animationName?: string;
@@ -86,6 +89,22 @@ export interface InteractionDefinition {
   actions: InteractionAction[];
 }
 
+// ─── Colliders ────────────────────────────────────────────────────────────────
+
+export type ColliderType = "box" | "sphere" | "capsule" | "cylinder";
+
+export interface ColliderDefinition {
+  id: string;
+  enabled: boolean;
+  type: ColliderType;
+  center?: Vec3;
+  size?: Vec3; // [width, height, depth] for box
+  radius?: number; // for sphere, capsule, cylinder
+  height?: number; // for capsule, cylinder
+  rotation?: Vec3; // Euler rotation relative to object
+  isTrigger?: boolean; // false = physical block, true = overlap detection
+}
+
 // ─── Scene Object Base ────────────────────────────────────────────────────────
 
 /** Shared fields for every object in a scene. */
@@ -106,6 +125,8 @@ export interface SceneObjectBase {
   runtime?: RuntimeSettings;
   /** Interactive behavior definition */
   interaction?: InteractionDefinition;
+  /** Physical and trigger colliders */
+  colliders?: ColliderDefinition[];
 }
 
 // ─── Point Light ──────────────────────────────────────────────────────────────
@@ -121,10 +142,20 @@ export interface PointLightObject extends SceneObjectBase {
 
 // ─── Portal ───────────────────────────────────────────────────────────────────
 
+export interface NavigationTarget {
+  type: "area" | "room" | "spawn-point";
+  areaId: string;
+  roomId?: string;
+  spawnPointId?: string;
+}
+
 export interface PortalObject extends SceneObjectBase {
   type: "portal";
   transform: Transform;
-  targetArea: WorldAreaId;
+  targetArea: WorldAreaId | string;
+  targetRoom?: string;
+  targetSpawnPoint?: string;
+  navigationTarget?: NavigationTarget;
   targetLabel: string;
   subtitle?: string;
   accent: Color;
@@ -257,6 +288,22 @@ export interface InfoDisplayObject extends SceneObjectBase {
   projectId?: string;
 }
 
+export interface ImagePlaneObject extends SceneObjectBase {
+  type: "image-plane";
+  transform: Transform;
+  imageUrl: string;
+  aspectRatio: number;
+  width: number;
+  height: number;
+  doubleSided?: boolean;
+  transparent?: boolean;
+  opacity?: number;
+  emissive?: boolean;
+  emissiveIntensity?: number;
+  roughness?: number;
+  billboard?: boolean;
+}
+
 // ─── Scene Object Union ──────────────────────────────────────────────────────
 
 export type SceneObject =
@@ -267,7 +314,8 @@ export type SceneObject =
   | TeleportPointObject
   | TriggerVolumeObject
   | AudioSourceObject
-  | InfoDisplayObject;
+  | InfoDisplayObject
+  | ImagePlaneObject;
 
 // ─── Atmosphere ──────────────────────────────────────────────────────────────
 
@@ -285,12 +333,36 @@ export interface AreaBounds {
   maxZ: number;
 }
 
-// ─── Spawn ───────────────────────────────────────────────────────────────────
+export interface SpawnPoint {
+  id: string;
+  name: string;
+  position?: Vec3;
+  yaw?: number;
+  transform?: Transform;
+  tags?: string[];
+  isDefault?: boolean;
+}
 
 export interface SpawnConfig {
   position: Vec3;
   /** Initial camera yaw in radians. */
   yaw: number;
+  spawnPoints?: SpawnPoint[];
+  defaultSpawnPointId?: string;
+}
+
+// ─── Room Definition ─────────────────────────────────────────────────────────
+
+export interface RoomDefinition {
+  id: string;
+  name: string;
+  description?: string;
+  bounds: AreaBounds;
+  spawnPoints: SpawnPoint[];
+  defaultSpawnPointId: string;
+  objects: SceneObject[];
+  environment?: Partial<EnvironmentConfig>;
+  enabled?: boolean;
 }
 
 // ─── Area Metadata ───────────────────────────────────────────────────────────
@@ -305,15 +377,39 @@ export interface AreaMetadata {
 // ─── Area Scene Definition ───────────────────────────────────────────────────
 
 export interface AreaSceneDefinition {
-  /** Must match a registered WorldAreaId. */
-  id: WorldAreaId;
+  /** Must match a registered WorldAreaId or dynamic string ID. */
+  id: WorldAreaId | string;
   /** Schema version for future migration. */
   version: number;
   metadata: AreaMetadata;
   bounds: AreaBounds;
   spawn: SpawnConfig;
   atmosphere: AtmosphereConfig;
+  /** Legacy flat object list, synchronized with default room objects */
   objects: readonly SceneObject[];
+  /** First-class rooms contained within this area */
+  rooms?: RoomDefinition[];
+  /** Identifier of the default active room */
+  defaultRoomId?: string;
+}
+
+// ─── World Manifest ──────────────────────────────────────────────────────────
+
+export interface WorldAreaManifestEntry {
+  id: string;
+  name: string;
+  categoryTitle: string;
+  description: string;
+  accent: Color;
+  rooms: { id: string; name: string; isDefault?: boolean }[];
+  defaultRoomId: string;
+}
+
+export interface WorldManifest {
+  version: number;
+  defaultAreaId: string;
+  areaOrder: string[];
+  areas: Record<string, WorldAreaManifestEntry>;
 }
 
 // ─── Environment Configuration ───────────────────────────────────────────────
@@ -380,7 +476,8 @@ export interface AtlasSceneDefinition {
   /** Schema version for the overall scene document. */
   version: number;
   environment: EnvironmentConfig;
-  areas: Partial<Record<WorldAreaId, AreaSceneDefinition>>;
+  areas: Partial<Record<WorldAreaId | string, AreaSceneDefinition>>;
+  manifest?: WorldManifest;
 }
 
 // ─── Asset Reference ─────────────────────────────────────────────────────────

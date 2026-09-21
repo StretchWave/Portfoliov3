@@ -2,10 +2,14 @@ import type { WorldAreaId } from "@/types/portfolio";
 import type {
   AreaSceneDefinition,
   AtlasSceneDefinition,
+  ColliderDefinition,
   EnvironmentConfig,
+  RoomDefinition,
   SceneObject,
   Vec3,
 } from "@/types/scene";
+import type { AppContent } from "@/types/content";
+import { defaultAppContent } from "@/data/app-content";
 
 import {
   canRedo,
@@ -16,6 +20,8 @@ import {
   redo,
   undo,
 } from "./history";
+
+import { calculateDroppedPosition } from "../systems/surface-snapping";
 
 export type TransformMode = "select" | "translate" | "rotate" | "scale";
 export type TransformSpace = "world" | "local";
@@ -51,9 +57,21 @@ export interface ModalTransformState {
   };
 }
 
+export interface StudioOverlaysConfig {
+  grid: boolean;
+  colliders: boolean;
+  triggers: boolean;
+  roomBounds: boolean;
+  spawnPoints: boolean;
+  teleportPoints: boolean;
+  interactionTargets: boolean;
+  cursor3D: boolean;
+}
+
 export interface EditorState {
   scene: AtlasSceneDefinition;
   activeAreaId: WorldAreaId;
+  activeRoomId: string;
   selectedObjectId: string | null;
   selectedObjectIds: string[];
   cursor3D: Vec3;
@@ -62,6 +80,8 @@ export interface EditorState {
   snapEnabled: boolean;
   snapMode: SnapMode;
   snapStep: number;
+  snapRotationStep: number;
+  snapScaleStep: number;
   editorMode: EditorMode;
   transformMode: TransformMode;
   transformSpace: TransformSpace;
@@ -75,6 +95,9 @@ export interface EditorState {
   currentRevision: number;
   lastSavedTimestamp: number | null;
   savedScene: AtlasSceneDefinition;
+  overlays: StudioOverlaysConfig;
+  appContent: AppContent;
+  isAppContentOpen: boolean;
 }
 
 export type EditorAction =
@@ -83,6 +106,7 @@ export type EditorAction =
   | { type: "SELECT_ALL" }
   | { type: "DESELECT_ALL" }
   | { type: "SET_ACTIVE_AREA"; areaId: WorldAreaId }
+  | { type: "SET_ACTIVE_ROOM"; roomId: string }
   | { type: "SET_EDITOR_MODE"; mode: EditorMode }
   | { type: "SET_TRANSFORM_MODE"; mode: TransformMode }
   | { type: "SET_TRANSFORM_SPACE"; space: TransformSpace }
@@ -90,8 +114,13 @@ export type EditorAction =
   | { type: "SET_TRANSFORM_ORIENTATION"; orientation: TransformOrientation }
   | { type: "TOGGLE_SNAP"; enabled?: boolean }
   | { type: "SET_SNAP_MODE"; mode: SnapMode; step?: number }
+  | { type: "SET_SNAP_ROTATION_STEP"; step: number }
+  | { type: "SET_SNAP_SCALE_STEP"; step: number }
+  | { type: "DROP_TO_SURFACE"; padding?: number; historyLabel?: string }
   | { type: "SET_3D_CURSOR"; position: Vec3 }
   | { type: "SET_ACTIVE_PANEL"; panel: ActivePanel }
+  | { type: "TOGGLE_OVERLAY"; key: keyof StudioOverlaysConfig; enabled?: boolean }
+  | { type: "SET_OVERLAYS"; overlays: Partial<StudioOverlaysConfig> }
   | { type: "UPDATE_OBJECT"; objectId: string; patch: Partial<SceneObject>; historyLabel?: string }
   | {
       type: "BATCH_UPDATE_OBJECTS";
@@ -102,6 +131,18 @@ export type EditorAction =
   | { type: "ADD_OBJECT"; object: SceneObject; areaId?: WorldAreaId; historyLabel?: string }
   | { type: "DELETE_OBJECT"; objectId?: string; historyLabel?: string }
   | { type: "DUPLICATE_OBJECT"; objectId?: string; historyLabel?: string }
+  | { type: "ADD_COLLIDER"; objectId: string; collider: ColliderDefinition; historyLabel?: string }
+  | { type: "UPDATE_COLLIDER"; objectId: string; colliderId: string; patch: Partial<ColliderDefinition>; historyLabel?: string }
+  | { type: "DELETE_COLLIDER"; objectId: string; colliderId: string; historyLabel?: string }
+  | { type: "DUPLICATE_COLLIDER"; objectId: string; colliderId: string; historyLabel?: string }
+  | { type: "FIT_COLLIDER"; objectId: string; colliderId: string; historyLabel?: string }
+  | { type: "ADD_ROOM"; areaId: WorldAreaId; room: RoomDefinition; historyLabel?: string }
+  | { type: "UPDATE_ROOM"; areaId: WorldAreaId; roomId: string; patch: Partial<RoomDefinition>; historyLabel?: string }
+  | { type: "DELETE_ROOM"; areaId: WorldAreaId; roomId: string; historyLabel?: string }
+  | { type: "DUPLICATE_ROOM"; areaId: WorldAreaId; roomId: string; historyLabel?: string }
+  | { type: "FIT_ROOM_BOUNDS"; areaId: WorldAreaId; roomId?: string; padding?: number; historyLabel?: string }
+  | { type: "UPDATE_APP_CONTENT"; patch: Partial<AppContent>; historyLabel?: string }
+  | { type: "SET_APP_CONTENT_OPEN"; isOpen: boolean }
   | {
       type: "START_MODAL_TRANSFORM";
       mode: "translate" | "rotate" | "scale";
@@ -146,10 +187,13 @@ export type EditorAction =
 
 export function createInitialEditorState(initialScene: AtlasSceneDefinition): EditorState {
   const initialAreaId: WorldAreaId = "atlas-hub";
+  const hubArea = initialScene.areas[initialAreaId];
+  const initialRoomId = hubArea?.defaultRoomId ?? hubArea?.rooms?.[0]?.id ?? "main-hall";
 
   return {
     scene: initialScene,
     activeAreaId: initialAreaId,
+    activeRoomId: initialRoomId,
     selectedObjectId: null,
     selectedObjectIds: [],
     cursor3D: [0, 0, 0],
@@ -158,6 +202,8 @@ export function createInitialEditorState(initialScene: AtlasSceneDefinition): Ed
     snapEnabled: false,
     snapMode: "increment",
     snapStep: 0.5,
+    snapRotationStep: 15,
+    snapScaleStep: 0.25,
     editorMode: "edit",
     transformMode: "translate",
     transformSpace: "world",
@@ -171,6 +217,18 @@ export function createInitialEditorState(initialScene: AtlasSceneDefinition): Ed
     currentRevision: 1,
     lastSavedTimestamp: null,
     savedScene: initialScene,
+    overlays: {
+      grid: true,
+      colliders: true,
+      triggers: true,
+      roomBounds: true,
+      spawnPoints: true,
+      teleportPoints: true,
+      interactionTargets: true,
+      cursor3D: true,
+    },
+    appContent: defaultAppContent,
+    isAppContentOpen: false,
   };
 }
 
@@ -221,12 +279,472 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     }
 
     case "SET_ACTIVE_AREA": {
+      const area = state.scene.areas[action.areaId];
+      const defaultRoom = area?.defaultRoomId ?? area?.rooms?.[0]?.id ?? "main";
       return {
         ...state,
         activeAreaId: action.areaId,
+        activeRoomId: defaultRoom,
         selectedObjectId: null,
         selectedObjectIds: [],
         modalTransform: null,
+      };
+    }
+
+    case "SET_ACTIVE_ROOM": {
+      return {
+        ...state,
+        activeRoomId: action.roomId,
+        selectedObjectId: null,
+        selectedObjectIds: [],
+        modalTransform: null,
+      };
+    }
+
+    case "TOGGLE_OVERLAY": {
+      return {
+        ...state,
+        overlays: {
+          ...state.overlays,
+          [action.key]: action.enabled !== undefined ? action.enabled : !state.overlays[action.key],
+        },
+      };
+    }
+
+    case "SET_OVERLAYS": {
+      return {
+        ...state,
+        overlays: {
+          ...state.overlays,
+          ...action.overlays,
+        },
+      };
+    }
+
+    case "UPDATE_APP_CONTENT": {
+      const updatedContent = {
+        ...state.appContent,
+        ...action.patch,
+      };
+      return {
+        ...state,
+        appContent: updatedContent,
+        isDirty: true,
+      };
+    }
+
+    case "SET_APP_CONTENT_OPEN": {
+      return {
+        ...state,
+        isAppContentOpen: action.isOpen,
+      };
+    }
+
+    case "ADD_COLLIDER": {
+      const area = state.scene.areas[state.activeAreaId];
+      if (!area) return state;
+      const objIndex = area.objects.findIndex((o) => o.id === action.objectId);
+      if (objIndex === -1) return state;
+
+      const currentObj = area.objects[objIndex];
+      const currentColliders = currentObj.colliders ?? [];
+      const updatedObj = {
+        ...currentObj,
+        colliders: [...currentColliders, action.collider],
+      };
+
+      const updatedObjects = [...area.objects];
+      updatedObjects[objIndex] = updatedObj;
+
+      const newScene = {
+        ...state.scene,
+        areas: {
+          ...state.scene.areas,
+          [state.activeAreaId]: {
+            ...area,
+            objects: updatedObjects,
+          },
+        },
+      };
+
+      return {
+        ...state,
+        scene: newScene,
+        history: pushHistory(state.history, action.historyLabel ?? "Add Collider", newScene),
+        isDirty: true,
+      };
+    }
+
+    case "UPDATE_COLLIDER": {
+      const area = state.scene.areas[state.activeAreaId];
+      if (!area) return state;
+      const objIndex = area.objects.findIndex((o) => o.id === action.objectId);
+      if (objIndex === -1) return state;
+
+      const currentObj = area.objects[objIndex];
+      const currentColliders = currentObj.colliders ?? [];
+      const colIndex = currentColliders.findIndex((c) => c.id === action.colliderId);
+      if (colIndex === -1) return state;
+
+      const updatedColliders = [...currentColliders];
+      updatedColliders[colIndex] = {
+        ...updatedColliders[colIndex],
+        ...action.patch,
+      };
+
+      const updatedObjects = [...area.objects];
+      updatedObjects[objIndex] = {
+        ...currentObj,
+        colliders: updatedColliders,
+      };
+
+      const newScene = {
+        ...state.scene,
+        areas: {
+          ...state.scene.areas,
+          [state.activeAreaId]: {
+            ...area,
+            objects: updatedObjects,
+          },
+        },
+      };
+
+      return {
+        ...state,
+        scene: newScene,
+        history: pushHistory(state.history, action.historyLabel ?? "Update Collider", newScene),
+        isDirty: true,
+      };
+    }
+
+    case "DELETE_COLLIDER": {
+      const area = state.scene.areas[state.activeAreaId];
+      if (!area) return state;
+      const objIndex = area.objects.findIndex((o) => o.id === action.objectId);
+      if (objIndex === -1) return state;
+
+      const currentObj = area.objects[objIndex];
+      const updatedColliders = (currentObj.colliders ?? []).filter((c) => c.id !== action.colliderId);
+
+      const updatedObjects = [...area.objects];
+      updatedObjects[objIndex] = {
+        ...currentObj,
+        colliders: updatedColliders,
+      };
+
+      const newScene = {
+        ...state.scene,
+        areas: {
+          ...state.scene.areas,
+          [state.activeAreaId]: {
+            ...area,
+            objects: updatedObjects,
+          },
+        },
+      };
+
+      return {
+        ...state,
+        scene: newScene,
+        history: pushHistory(state.history, action.historyLabel ?? "Delete Collider", newScene),
+        isDirty: true,
+      };
+    }
+
+    case "DUPLICATE_COLLIDER": {
+      const area = state.scene.areas[state.activeAreaId];
+      if (!area) return state;
+      const objIndex = area.objects.findIndex((o) => o.id === action.objectId);
+      if (objIndex === -1) return state;
+
+      const currentObj = area.objects[objIndex];
+      const currentColliders = currentObj.colliders ?? [];
+      const targetCol = currentColliders.find((c) => c.id === action.colliderId);
+      if (!targetCol) return state;
+
+      const newCol: ColliderDefinition = {
+        ...targetCol,
+        id: `${targetCol.id}-copy-${Date.now().toString(36).slice(-4)}`,
+      };
+
+      const updatedObjects = [...area.objects];
+      updatedObjects[objIndex] = {
+        ...currentObj,
+        colliders: [...currentColliders, newCol],
+      };
+
+      const newScene = {
+        ...state.scene,
+        areas: {
+          ...state.scene.areas,
+          [state.activeAreaId]: {
+            ...area,
+            objects: updatedObjects,
+          },
+        },
+      };
+
+      return {
+        ...state,
+        scene: newScene,
+        history: pushHistory(state.history, action.historyLabel ?? "Duplicate Collider", newScene),
+        isDirty: true,
+      };
+    }
+
+    case "FIT_COLLIDER": {
+      const area = state.scene.areas[state.activeAreaId];
+      if (!area) return state;
+      const objIndex = area.objects.findIndex((o) => o.id === action.objectId);
+      if (objIndex === -1) return state;
+
+      const currentObj = area.objects[objIndex];
+      const currentColliders = currentObj.colliders ?? [];
+      const colIndex = currentColliders.findIndex((c) => c.id === action.colliderId);
+      if (colIndex === -1) return state;
+
+      let fitSize: Vec3 = [1, 1, 1];
+      let fitRadius = 0.5;
+      let fitHeight = 1.0;
+
+      if (currentObj.type === "point-light") {
+        const light = currentObj as any;
+        fitRadius = Math.min(light.distance ?? 5, 2.0);
+        fitSize = [fitRadius * 2, fitRadius * 2, fitRadius * 2];
+      } else if (currentObj.type === "portal") {
+        fitSize = [1.8, 3.2, 0.6];
+        fitRadius = 1.0;
+        fitHeight = 3.2;
+      } else if (currentObj.type === "architecture") {
+        const arch = currentObj as any;
+        if (arch.moduleType === "wall-segment") {
+          fitSize = [arch.props?.width ?? 4, arch.props?.height ?? 3.2, arch.props?.thickness ?? 0.4];
+        } else if (arch.moduleType === "column") {
+          fitSize = [arch.props?.size ?? 0.8, arch.props?.height ?? 4, arch.props?.size ?? 0.8];
+          fitRadius = (arch.props?.size ?? 0.8) / 2;
+          fitHeight = arch.props?.height ?? 4;
+        }
+      } else if (currentObj.type === "trigger-volume") {
+        const trig = currentObj as any;
+        fitSize = trig.dimensions ?? [2, 2, 2];
+      }
+
+      const updatedColliders = [...currentColliders];
+      updatedColliders[colIndex] = {
+        ...updatedColliders[colIndex],
+        size: fitSize,
+        radius: fitRadius,
+        height: fitHeight,
+      };
+
+      const updatedObjects = [...area.objects];
+      updatedObjects[objIndex] = {
+        ...currentObj,
+        colliders: updatedColliders,
+      };
+
+      const newScene = {
+        ...state.scene,
+        areas: {
+          ...state.scene.areas,
+          [state.activeAreaId]: {
+            ...area,
+            objects: updatedObjects,
+          },
+        },
+      };
+
+      return {
+        ...state,
+        scene: newScene,
+        history: pushHistory(state.history, action.historyLabel ?? "Fit Collider to Object", newScene),
+        isDirty: true,
+      };
+    }
+
+    case "ADD_ROOM": {
+      const area = state.scene.areas[action.areaId];
+      if (!area) return state;
+      const currentRooms = area.rooms ?? [];
+      const updatedRooms = [...currentRooms, action.room];
+
+      const newScene = {
+        ...state.scene,
+        areas: {
+          ...state.scene.areas,
+          [action.areaId]: {
+            ...area,
+            rooms: updatedRooms,
+          },
+        },
+      };
+
+      return {
+        ...state,
+        scene: newScene,
+        activeRoomId: action.room.id,
+        history: pushHistory(state.history, action.historyLabel ?? `Add Room "${action.room.name}"`, newScene),
+        isDirty: true,
+      };
+    }
+
+    case "UPDATE_ROOM": {
+      const area = state.scene.areas[action.areaId];
+      if (!area) return state;
+      const currentRooms = area.rooms ?? [];
+      const roomIndex = currentRooms.findIndex((r) => r.id === action.roomId);
+      if (roomIndex === -1) return state;
+
+      const updatedRooms = [...currentRooms];
+      updatedRooms[roomIndex] = {
+        ...updatedRooms[roomIndex],
+        ...action.patch,
+      };
+
+      const newScene = {
+        ...state.scene,
+        areas: {
+          ...state.scene.areas,
+          [action.areaId]: {
+            ...area,
+            rooms: updatedRooms,
+          },
+        },
+      };
+
+      return {
+        ...state,
+        scene: newScene,
+        history: pushHistory(state.history, action.historyLabel ?? "Update Room", newScene),
+        isDirty: true,
+      };
+    }
+
+    case "DELETE_ROOM": {
+      const area = state.scene.areas[action.areaId];
+      if (!area) return state;
+      const currentRooms = area.rooms ?? [];
+      if (currentRooms.length <= 1) return state;
+
+      const updatedRooms = currentRooms.filter((r) => r.id !== action.roomId);
+      const nextRoomId = updatedRooms[0]?.id ?? "main";
+
+      const newScene = {
+        ...state.scene,
+        areas: {
+          ...state.scene.areas,
+          [action.areaId]: {
+            ...area,
+            rooms: updatedRooms,
+            defaultRoomId: area.defaultRoomId === action.roomId ? nextRoomId : area.defaultRoomId,
+          },
+        },
+      };
+
+      return {
+        ...state,
+        scene: newScene,
+        activeRoomId: nextRoomId,
+        history: pushHistory(state.history, action.historyLabel ?? "Delete Room", newScene),
+        isDirty: true,
+      };
+    }
+
+    case "DUPLICATE_ROOM": {
+      const area = state.scene.areas[action.areaId];
+      if (!area) return state;
+      const currentRooms = area.rooms ?? [];
+      const sourceRoom = currentRooms.find((r) => r.id === action.roomId);
+      if (!sourceRoom) return state;
+
+      const suffix = Date.now().toString(36).slice(-4);
+      const newRoomId = `${sourceRoom.id}-copy-${suffix}`;
+      const duplicatedObjects = sourceRoom.objects.map((o) => ({
+        ...o,
+        id: `${o.id}-copy-${suffix}`,
+      }));
+
+      const newRoom: RoomDefinition = {
+        ...sourceRoom,
+        id: newRoomId,
+        name: `${sourceRoom.name} (Copy)`,
+        objects: duplicatedObjects,
+      };
+
+      const updatedRooms = [...currentRooms, newRoom];
+      const newScene = {
+        ...state.scene,
+        areas: {
+          ...state.scene.areas,
+          [action.areaId]: {
+            ...area,
+            rooms: updatedRooms,
+          },
+        },
+      };
+
+      return {
+        ...state,
+        scene: newScene,
+        activeRoomId: newRoomId,
+        history: pushHistory(state.history, action.historyLabel ?? `Duplicate Room "${sourceRoom.name}"`, newScene),
+        isDirty: true,
+      };
+    }
+
+    case "FIT_ROOM_BOUNDS": {
+      const area = state.scene.areas[action.areaId];
+      if (!area) return state;
+      const padding = action.padding ?? 1.5;
+
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minZ = Infinity;
+      let maxZ = -Infinity;
+
+      for (const obj of area.objects) {
+        const [x, , z] = obj.transform.position;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (z < minZ) minZ = z;
+        if (z > maxZ) maxZ = z;
+      }
+
+      if (!Number.isFinite(minX)) {
+        minX = -10;
+        maxX = 10;
+        minZ = -10;
+        maxZ = 10;
+      } else {
+        minX = Math.floor(minX - padding);
+        maxX = Math.ceil(maxX + padding);
+        minZ = Math.floor(minZ - padding);
+        maxZ = Math.ceil(maxZ + padding);
+      }
+
+      const updatedBounds = { minX, maxX, minZ, maxZ };
+      const currentRooms = area.rooms ?? [];
+      const updatedRooms = currentRooms.map((r) =>
+        r.id === action.roomId ? { ...r, bounds: updatedBounds } : r,
+      );
+
+      const newScene = {
+        ...state.scene,
+        areas: {
+          ...state.scene.areas,
+          [action.areaId]: {
+            ...area,
+            bounds: updatedBounds,
+            rooms: updatedRooms.length > 0 ? updatedRooms : undefined,
+          },
+        },
+      };
+
+      return {
+        ...state,
+        scene: newScene,
+        history: pushHistory(state.history, action.historyLabel ?? "Fit Room Bounds to Objects", newScene),
+        isDirty: true,
       };
     }
 
@@ -279,6 +797,66 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         ...state,
         snapMode: action.mode,
         snapStep: action.step ?? state.snapStep,
+      };
+    }
+
+    case "SET_SNAP_ROTATION_STEP": {
+      return {
+        ...state,
+        snapRotationStep: action.step,
+      };
+    }
+
+    case "SET_SNAP_SCALE_STEP": {
+      return {
+        ...state,
+        snapScaleStep: action.step,
+      };
+    }
+
+    case "DROP_TO_SURFACE": {
+      const targetIds = state.selectedObjectIds.length > 0
+        ? state.selectedObjectIds
+        : state.selectedObjectId
+          ? [state.selectedObjectId]
+          : [];
+      if (targetIds.length === 0) return state;
+
+      const area = state.scene.areas[state.activeAreaId];
+      if (!area) return state;
+
+      const updatedObjects = area.objects.map((obj) => {
+        if (!targetIds.includes(obj.id)) return obj;
+        const newPos = calculateDroppedPosition(obj, area.objects, action.padding ?? 0);
+        return {
+          ...obj,
+          transform: {
+            ...obj.transform,
+            position: newPos,
+          },
+        };
+      });
+
+      const newArea = { ...area, objects: updatedObjects };
+      const newScene: AtlasSceneDefinition = {
+        ...state.scene,
+        areas: {
+          ...state.scene.areas,
+          [state.activeAreaId]: newArea,
+        },
+      };
+
+      const history = pushHistory(
+        state.history,
+        action.historyLabel ?? "Drop to Surface",
+        newScene,
+      );
+
+      return {
+        ...state,
+        scene: newScene,
+        history,
+        isDirty: true,
       };
     }
 

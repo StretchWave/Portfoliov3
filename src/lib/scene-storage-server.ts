@@ -1,8 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { validateScene, type ValidationError } from "./scene-validation";
-import { serializeAreaScene, serializeEnvironmentConfig } from "./scene-serializer";
-import type { AtlasSceneDefinition, AreaSceneDefinition, EnvironmentConfig } from "@/types/scene";
+import {
+  serializeAreaScene,
+  serializeEnvironmentConfig,
+  serializeAppContent,
+  serializeWorldManifest,
+} from "./scene-serializer";
+import type { AtlasSceneDefinition, AreaSceneDefinition, EnvironmentConfig, WorldManifest } from "@/types/scene";
+import type { AppContent } from "@/types/content";
 import type { WorldAreaId } from "@/types/portfolio";
 
 export interface SceneRevisionData {
@@ -13,8 +19,10 @@ export interface SceneRevisionData {
 
 export interface SaveSceneOptions {
   expectedRevision?: number;
+  force?: boolean;
   author?: string;
   targetAreaId?: WorldAreaId;
+  appContent?: AppContent;
 }
 
 export interface SaveSceneResult {
@@ -23,6 +31,7 @@ export interface SaveSceneResult {
   timestamp: number;
   savedAreas: string[];
   savedEnvironment: boolean;
+  savedAppContent?: boolean;
   errors?: readonly ValidationError[];
   error?: string;
   code?: string;
@@ -41,7 +50,25 @@ const ALLOWED_FILES: Record<string, string> = {
   "intelligence-observatory": "intelligence-observatory.ts",
   "creative-workshop": "creative-workshop.ts",
   environment: "environment.ts",
+  manifest: "manifest.ts",
 };
+
+export function getSafeSceneFilePath(areaId: string): string | null {
+  if (ALLOWED_FILES[areaId]) {
+    return path.join(getScenesDirectory(), ALLOWED_FILES[areaId]);
+  }
+  // Validate safe slug: only alphanumeric and hyphens, no traversal
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(areaId)) {
+    return null;
+  }
+  const scenesDir = getScenesDirectory();
+  const target = path.join(scenesDir, `${areaId}.ts`);
+  const rel = path.relative(scenesDir, target);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) {
+    return null;
+  }
+  return target;
+}
 
 const MAX_BACKUPS_PER_FILE = 5;
 
@@ -185,6 +212,7 @@ export function saveSceneToProjectSource(
   // 2. Concurrency Check (Revision Conflict)
   const currentRev = getCurrentRevision();
   if (
+    !options.force &&
     typeof options.expectedRevision === "number" &&
     options.expectedRevision < currentRev.revision
   ) {
@@ -224,17 +252,16 @@ export function saveSceneToProjectSource(
       }
     }
 
-    // 4. Save Area Scenes
+    // 4. Save Area Scenes (supports existing and dynamically created areas)
     for (const [areaId, areaScene] of Object.entries(scene.areas)) {
       if (!areaScene) continue;
 
-      const fileName = ALLOWED_FILES[areaId];
-      if (!fileName) {
-        console.warn(`[SceneStorage] Skipping unmapped area: "${areaId}"`);
+      const areaPath = getSafeSceneFilePath(areaId);
+      if (!areaPath) {
+        console.warn(`[SceneStorage] Skipping unmapped or unsafe area: "${areaId}"`);
         continue;
       }
 
-      const areaPath = path.join(scenesDir, fileName);
       const newContent = serializeAreaScene(areaScene);
 
       let shouldWrite = true;
@@ -252,7 +279,33 @@ export function saveSceneToProjectSource(
       }
     }
 
-    // 5. Increment revision and write revision metadata
+    // 5. Save World Manifest if present
+    if (scene.manifest) {
+      const manifestPath = path.join(scenesDir, "manifest.ts");
+      const newManifestContent = serializeWorldManifest(scene.manifest);
+      let shouldWrite = true;
+      if (fs.existsSync(manifestPath)) {
+        const existing = fs.readFileSync(manifestPath, "utf-8");
+        if (existing.trim() === newManifestContent.trim()) {
+          shouldWrite = false;
+        }
+      }
+      if (shouldWrite) {
+        createBackup(manifestPath, "manifest");
+        atomicWriteFile(manifestPath, newManifestContent);
+      }
+    }
+
+    // 6. Save App Content if passed in options
+    let savedAppContent = false;
+    if (options.appContent) {
+      const appContentRes = saveAppContentToProjectSource(options.appContent);
+      if (appContentRes.success) {
+        savedAppContent = true;
+      }
+    }
+
+    // 7. Increment revision and write revision metadata
     const nextRevision = currentRev.revision + 1;
     const nextRevisionData: SceneRevisionData = {
       revision: nextRevision,
@@ -271,6 +324,7 @@ export function saveSceneToProjectSource(
       timestamp: nextRevisionData.lastSavedAt,
       savedAreas,
       savedEnvironment,
+      savedAppContent,
       errors: validation.errors.filter((e) => e.severity === "warning"),
     };
   } catch (err) {
@@ -285,3 +339,75 @@ export function saveSceneToProjectSource(
     };
   }
 }
+
+/**
+ * Persists AppContent to canonical project source file (src/data/app-content.ts)
+ * with automated backups and atomic writes.
+ */
+export function saveAppContentToProjectSource(content: AppContent): {
+  success: boolean;
+  error?: string;
+} {
+  try {
+    const targetPath = path.resolve(process.cwd(), "src/data/app-content.ts");
+    const newContent = serializeAppContent(content);
+
+    let shouldWrite = true;
+    if (fs.existsSync(targetPath)) {
+      const existing = fs.readFileSync(targetPath, "utf-8");
+      if (existing.trim() === newContent.trim()) {
+        shouldWrite = false;
+      }
+    }
+
+    if (shouldWrite) {
+      createBackup(targetPath, "app-content");
+      atomicWriteFile(targetPath, newContent);
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error("[SceneStorage] Error saving app content:", err);
+    return {
+      success: false,
+      error: `Failed to persist app content: ${String(err)}`,
+    };
+  }
+}
+
+/**
+ * Persists WorldManifest to canonical project source file (src/data/scenes/manifest.ts)
+ * with automated backups and atomic writes.
+ */
+export function saveWorldManifestToProjectSource(manifest: WorldManifest): {
+  success: boolean;
+  error?: string;
+} {
+  try {
+    const scenesDir = getScenesDirectory();
+    const targetPath = path.join(scenesDir, "manifest.ts");
+    const newContent = serializeWorldManifest(manifest);
+
+    let shouldWrite = true;
+    if (fs.existsSync(targetPath)) {
+      const existing = fs.readFileSync(targetPath, "utf-8");
+      if (existing.trim() === newContent.trim()) {
+        shouldWrite = false;
+      }
+    }
+
+    if (shouldWrite) {
+      createBackup(targetPath, "manifest");
+      atomicWriteFile(targetPath, newContent);
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error("[SceneStorage] Error saving world manifest:", err);
+    return {
+      success: false,
+      error: `Failed to persist world manifest: ${String(err)}`,
+    };
+  }
+}
+

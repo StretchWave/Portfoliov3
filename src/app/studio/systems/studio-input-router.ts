@@ -297,6 +297,20 @@ export function handleStudioKeyDown(
       findCommandById("system.toggle_inspector")?.run(ctx);
       return;
     }
+
+    // Drop to Surface (End)
+    if (e.key === "End") {
+      e.preventDefault();
+      ctx.dispatch({ type: "DROP_TO_SURFACE" });
+      return;
+    }
+
+    // Toggle Snap (Shift+Tab)
+    if (e.shiftKey && e.key === "Tab") {
+      e.preventDefault();
+      ctx.dispatch({ type: "TOGGLE_SNAP" });
+      return;
+    }
   }
 
   // Alt combinations

@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { worldAreaIds, type WorldAreaId } from "@/types/portfolio";
+import { getAllProjects } from "@/features/portfolio/project-registry";
 import type {
   ArchitectureObject,
+  ColliderDefinition,
+  ColliderType,
+  ImagePlaneObject,
   InteractionAction,
   InteractionCondition,
   InteractionDefinition,
@@ -73,6 +77,7 @@ const ACTION_TYPE_OPTIONS = [
   { value: "show-project", label: "Show Project" },
   { value: "show-information", label: "Show Information" },
   { value: "teleport-player", label: "Teleport Player" },
+  { value: "teleport-to-room", label: "Teleport to Room" },
   { value: "open-district", label: "Open District" },
   { value: "play-sound", label: "Play Sound" },
   { value: "highlight-object", label: "Highlight Object" },
@@ -113,9 +118,16 @@ function InteractionActionRow({
 
       {/* Type-specific fields */}
       {action.type === "show-project" && (
-        <TextField
-          label="Project ID"
+        <SelectField
+          label="Select Project"
           value={action.projectId ?? ""}
+          options={[
+            { value: "", label: "-- Choose a Project --" },
+            ...getAllProjects().map((p) => ({
+              value: p.id,
+              label: `${p.name} (${p.category})`,
+            })),
+          ]}
           onChange={(projectId) => onChange({ ...action, projectId })}
         />
       )}
@@ -140,21 +152,34 @@ function InteractionActionRow({
         </>
       )}
 
-      {(action.type === "teleport-player" || action.type === "open-district") && (
+      {(action.type === "teleport-player" || action.type === "teleport-to-room" || action.type === "open-district") && (
         <SelectField
-          label="Target Area"
+          label="Target District"
           value={action.targetArea ?? ""}
           options={worldAreaIds.map((id) => ({ value: id, label: id }))}
           onChange={(targetArea) => onChange({ ...action, targetArea: targetArea as WorldAreaId })}
         />
       )}
 
-      {action.type === "teleport-player" && (
-        <TextField
-          label="Teleport Point ID"
-          value={action.teleportPointId ?? ""}
-          onChange={(teleportPointId) => onChange({ ...action, teleportPointId })}
-        />
+      {(action.type === "teleport-player" || action.type === "teleport-to-room") && (
+        <>
+          <TextField
+            label="Target Room ID (e.g. main-hall, blender-lab)"
+            value={action.targetRoomId ?? ""}
+            onChange={(targetRoomId) => onChange({ ...action, targetRoomId })}
+          />
+          <TextField
+            label="Target Spawn Point ID (Optional)"
+            value={action.targetSpawnPointId ?? action.teleportPointId ?? ""}
+            onChange={(targetSpawnPointId) =>
+              onChange({
+                ...action,
+                targetSpawnPointId,
+                teleportPointId: targetSpawnPointId,
+              })
+            }
+          />
+        </>
       )}
 
       {action.type === "play-sound" && (
@@ -414,6 +439,216 @@ function InteractionSection({
   );
 }
 
+// ─── Collision Authoring Section ──────────────────────────────────────────
+
+function CollisionSection({
+  selectedObject,
+  addCollider,
+  updateCollider,
+  deleteCollider,
+  duplicateCollider,
+  fitCollider,
+}: {
+  selectedObject: SceneObject;
+  addCollider: (objectId: string, collider: ColliderDefinition) => void;
+  updateCollider: (objectId: string, colliderId: string, patch: Partial<ColliderDefinition>) => void;
+  deleteCollider: (objectId: string, colliderId: string) => void;
+  duplicateCollider: (objectId: string, colliderId: string) => void;
+  fitCollider: (objectId: string, colliderId: string) => void;
+}) {
+  const colliders = selectedObject.colliders ?? [];
+
+  const handleAdd = (type: ColliderType) => {
+    const newCol: ColliderDefinition = {
+      id: `col-${Date.now().toString(36).slice(-4)}`,
+      enabled: true,
+      type,
+      center: [0, 0, 0],
+      size: [2, 2, 2],
+      radius: 1,
+      height: 2,
+      rotation: [0, 0, 0],
+      isTrigger: false,
+    };
+    addCollider(selectedObject.id, newCol);
+  };
+
+  return (
+    <CollapsibleSection
+      title="Collision"
+      icon="🛡️"
+      badge={colliders.length > 0 ? `${colliders.length}` : undefined}
+      defaultOpen={colliders.length > 0}
+    >
+      <div className="space-y-3">
+        {/* Add Collider Buttons */}
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            Colliders ({colliders.length})
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => handleAdd("box")}
+              className="rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-[10px] text-cyan-400 hover:border-cyan-500/40 hover:bg-cyan-950/20 transition-colors"
+              title="Add Box Collider"
+            >
+              + Box
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAdd("sphere")}
+              className="rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-[10px] text-cyan-400 hover:border-cyan-500/40 hover:bg-cyan-950/20 transition-colors"
+              title="Add Sphere Collider"
+            >
+              + Sphere
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAdd("capsule")}
+              className="rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-[10px] text-cyan-400 hover:border-cyan-500/40 hover:bg-cyan-950/20 transition-colors"
+              title="Add Capsule Collider"
+            >
+              + Capsule
+            </button>
+          </div>
+        </div>
+
+        {colliders.length === 0 ? (
+          <div className="rounded border border-dashed border-zinc-800 p-2.5 text-center text-[10px] text-zinc-500">
+            No colliders attached. Click a button above to add a physical or trigger collider.
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {colliders.map((col) => (
+              <div
+                key={col.id}
+                className="rounded border border-zinc-800/90 bg-zinc-900/60 p-2.5 space-y-2"
+              >
+                {/* Header row */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="rounded bg-cyan-500/10 border border-cyan-500/30 px-1.5 py-0.2 text-[9px] font-mono font-bold uppercase text-cyan-400">
+                      {col.type}
+                    </span>
+                    <span className="text-[10px] font-mono text-zinc-400 truncate max-w-[110px]">
+                      {col.id}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => fitCollider(selectedObject.id, col.id)}
+                      className="text-[10px] text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
+                      title="Fit collider dimensions to object"
+                    >
+                      Fit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => duplicateCollider(selectedObject.id, col.id)}
+                      className="text-[10px] text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+                      title="Duplicate collider"
+                    >
+                      Dup
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteCollider(selectedObject.id, col.id)}
+                      className="text-[10px] text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
+                      title="Delete collider"
+                    >
+                      Del
+                    </button>
+                  </div>
+                </div>
+
+                {/* Toggles */}
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-zinc-800/50">
+                  <BooleanField
+                    label="Enabled"
+                    value={col.enabled}
+                    onChange={(enabled) =>
+                      updateCollider(selectedObject.id, col.id, { enabled })
+                    }
+                  />
+                  <BooleanField
+                    label="Trigger Only"
+                    value={Boolean(col.isTrigger)}
+                    onChange={(isTrigger) =>
+                      updateCollider(selectedObject.id, col.id, { isTrigger })
+                    }
+                  />
+                </div>
+
+                {/* Center offset */}
+                <Vec3Field
+                  label="Local Center"
+                  value={col.center ?? [0, 0, 0]}
+                  onChange={(center) =>
+                    updateCollider(selectedObject.id, col.id, { center })
+                  }
+                  defaultValue={[0, 0, 0]}
+                />
+
+                {/* Dimensions */}
+                {col.type === "box" && (
+                  <Vec3Field
+                    label="Size (W, H, D)"
+                    value={col.size ?? [1, 1, 1]}
+                    onChange={(size) =>
+                      updateCollider(selectedObject.id, col.id, { size })
+                    }
+                    defaultValue={[1, 1, 1]}
+                  />
+                )}
+
+                {(col.type === "sphere" || col.type === "capsule" || col.type === "cylinder") && (
+                  <NumberField
+                    label="Radius"
+                    value={col.radius ?? 0.5}
+                    min={0.05}
+                    max={50}
+                    step={0.1}
+                    onChange={(radius) =>
+                      updateCollider(selectedObject.id, col.id, { radius })
+                    }
+                  />
+                )}
+
+                {(col.type === "capsule" || col.type === "cylinder") && (
+                  <NumberField
+                    label="Height"
+                    value={col.height ?? 1.0}
+                    min={0.1}
+                    max={50}
+                    step={0.1}
+                    onChange={(height) =>
+                      updateCollider(selectedObject.id, col.id, { height })
+                    }
+                  />
+                )}
+
+                {/* Rotation */}
+                <Vec3Field
+                  label="Rotation"
+                  value={col.rotation ?? [0, 0, 0]}
+                  onChange={(rotation) =>
+                    updateCollider(selectedObject.id, col.id, { rotation })
+                  }
+                  defaultValue={[0, 0, 0]}
+                  step={0.05}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </CollapsibleSection>
+  );
+}
+
 // ─── Main Inspector Panel ───────────────────────────────────────────────────
 
 export function InspectorPanel() {
@@ -424,6 +659,11 @@ export function InspectorPanel() {
     updateObject,
     deleteObject,
     duplicateObject,
+    addCollider,
+    updateCollider,
+    deleteCollider,
+    duplicateCollider,
+    fitCollider,
   } = useEditor();
 
   const [copiedId, setCopiedId] = useState(false);
@@ -811,12 +1051,84 @@ export function InspectorPanel() {
               )}
             </>
           )}
+
+          {/* Image Plane Fields */}
+          {selectedObject.type === "image-plane" && (
+            <div className="space-y-3">
+              {(selectedObject as ImagePlaneObject).imageUrl && (
+                <div className="rounded border border-zinc-800 bg-zinc-900/60 p-2 flex items-center justify-center max-h-[140px] overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={(selectedObject as ImagePlaneObject).imageUrl}
+                    alt={selectedObject.label ?? "Image Plane"}
+                    className="max-h-[120px] max-w-full object-contain rounded"
+                  />
+                </div>
+              )}
+              <TextField
+                label="Image URL / Data URI"
+                value={(selectedObject as ImagePlaneObject).imageUrl ?? ""}
+                onChange={(imageUrl) => updateObject(selectedObject.id, { imageUrl } as any)}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <NumberField
+                  label="Width (m)"
+                  value={(selectedObject as ImagePlaneObject).width}
+                  step={0.1}
+                  min={0.1}
+                  onChange={(width) => updateObject(selectedObject.id, { width } as any)}
+                />
+                <NumberField
+                  label="Height (m)"
+                  value={(selectedObject as ImagePlaneObject).height}
+                  step={0.1}
+                  min={0.1}
+                  onChange={(height) => updateObject(selectedObject.id, { height } as any)}
+                />
+              </div>
+              <BooleanField
+                label="Double Sided"
+                value={(selectedObject as ImagePlaneObject).doubleSided !== false}
+                onChange={(doubleSided) => updateObject(selectedObject.id, { doubleSided } as any)}
+              />
+              <BooleanField
+                label="Transparent (Alpha Cutout)"
+                value={(selectedObject as ImagePlaneObject).transparent !== false}
+                onChange={(transparent) => updateObject(selectedObject.id, { transparent } as any)}
+              />
+              <BooleanField
+                label="Emissive Glow"
+                value={Boolean((selectedObject as ImagePlaneObject).emissive)}
+                onChange={(emissive) => updateObject(selectedObject.id, { emissive } as any)}
+              />
+              {(selectedObject as ImagePlaneObject).emissive && (
+                <NumberField
+                  label="Glow Intensity"
+                  value={(selectedObject as ImagePlaneObject).emissiveIntensity ?? 0.2}
+                  step={0.1}
+                  min={0}
+                  max={5}
+                  onChange={(emissiveIntensity) => updateObject(selectedObject.id, { emissiveIntensity } as any)}
+                />
+              )}
+            </div>
+          )}
         </CollapsibleSection>
 
         {/* ─── Interaction Authoring Section ────────────────────────────────── */}
         <InteractionSection
           selectedObject={selectedObject}
           updateObject={updateObject}
+        />
+
+        {/* ─── Collision Authoring Section ────────────────────────────────── */}
+        <CollisionSection
+          selectedObject={selectedObject}
+          addCollider={addCollider}
+          updateCollider={updateCollider}
+          deleteCollider={deleteCollider}
+          duplicateCollider={duplicateCollider}
+          fitCollider={fitCollider}
         />
 
         {/* Visibility & Runtime */}

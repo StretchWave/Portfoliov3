@@ -16,10 +16,13 @@ import type { WorldAreaId } from "@/types/portfolio";
 import type {
   AreaSceneDefinition,
   AtlasSceneDefinition,
+  ColliderDefinition,
   EnvironmentConfig,
+  RoomDefinition,
   SceneObject,
   Vec3,
 } from "@/types/scene";
+import type { AppContent } from "@/types/content";
 import type { ValidationError } from "@/lib/scene-validation";
 import { defaultPersistenceAdapter } from "../persistence/scene-persistence-adapter";
 import {
@@ -39,6 +42,7 @@ import {
   type ModalTransformState,
   type PivotMode,
   type SnapMode,
+  type StudioOverlaysConfig,
   type TransformMode,
   type TransformOrientation,
   type TransformSpace,
@@ -64,7 +68,7 @@ export interface EditorContextValue {
   recoverySnapshot: RecoverySnapshot | null;
   restoreRecoverySnapshot: () => void;
   discardRecoverySnapshot: () => void;
-  saveToProject: () => Promise<boolean>;
+  saveToProject: (options?: { force?: boolean }) => Promise<boolean>;
   selectObject: (id: string | null) => void;
   selectObjectToggle: (id: string) => void;
   selectAll: () => void;
@@ -77,6 +81,9 @@ export interface EditorContextValue {
   setTransformOrientation: (orientation: TransformOrientation) => void;
   toggleSnap: (enabled?: boolean) => void;
   setSnapMode: (mode: SnapMode, step?: number) => void;
+  setSnapRotationStep: (step: number) => void;
+  setSnapScaleStep: (step: number) => void;
+  dropToSurface: (padding?: number) => void;
   set3DCursor: (position: Vec3) => void;
   setActivePanel: (panel: ActivePanel) => void;
   updateObject: (id: string, patch: Partial<SceneObject>, historyLabel?: string) => void;
@@ -117,6 +124,22 @@ export interface EditorContextValue {
     historyLabel?: string,
   ) => void;
   updateEnvironment: (patch: Partial<EnvironmentConfig>, historyLabel?: string) => void;
+  setActiveRoom: (roomId: string) => void;
+  activeRoom: RoomDefinition | null;
+  toggleOverlay: (key: keyof StudioOverlaysConfig, enabled?: boolean) => void;
+  setOverlays: (overlays: Partial<StudioOverlaysConfig>) => void;
+  addCollider: (objectId: string, collider: ColliderDefinition, historyLabel?: string) => void;
+  updateCollider: (objectId: string, colliderId: string, patch: Partial<ColliderDefinition>, historyLabel?: string) => void;
+  deleteCollider: (objectId: string, colliderId: string, historyLabel?: string) => void;
+  duplicateCollider: (objectId: string, colliderId: string, historyLabel?: string) => void;
+  fitCollider: (objectId: string, colliderId: string, historyLabel?: string) => void;
+  addRoom: (areaId: WorldAreaId, room: RoomDefinition, historyLabel?: string) => void;
+  updateRoom: (areaId: WorldAreaId, roomId: string, patch: Partial<RoomDefinition>, historyLabel?: string) => void;
+  deleteRoom: (areaId: WorldAreaId, roomId: string, historyLabel?: string) => void;
+  duplicateRoom: (areaId: WorldAreaId, roomId: string, historyLabel?: string) => void;
+  fitRoomBounds: (areaId: WorldAreaId, roomId?: string, padding?: number, historyLabel?: string) => void;
+  updateAppContent: (patch: Partial<AppContent>, historyLabel?: string) => void;
+  setAppContentOpen: (isOpen: boolean) => void;
   undo: () => void;
   redo: () => void;
   loadScene: (scene: AtlasSceneDefinition) => void;
@@ -210,6 +233,18 @@ export function EditorProvider({
 
   const setSnapMode = useCallback((mode: SnapMode, step?: number) => {
     dispatch({ type: "SET_SNAP_MODE", mode, step });
+  }, []);
+
+  const setSnapRotationStep = useCallback((step: number) => {
+    dispatch({ type: "SET_SNAP_ROTATION_STEP", step });
+  }, []);
+
+  const setSnapScaleStep = useCallback((step: number) => {
+    dispatch({ type: "SET_SNAP_SCALE_STEP", step });
+  }, []);
+
+  const dropToSurface = useCallback((padding?: number) => {
+    dispatch({ type: "DROP_TO_SURFACE", padding });
   }, []);
 
   const set3DCursor = useCallback((position: Vec3) => {
@@ -331,16 +366,22 @@ export function EditorProvider({
     return null;
   });
 
-  // Sync initial server revision on mount
+  // Sync initial server revision on mount and window focus
   useEffect(() => {
-    defaultPersistenceAdapter
-      .getStatus()
-      .then((status) => {
-        if (status && typeof status.revision === "number") {
-          dispatch({ type: "SYNC_SERVER_REVISION", revision: status.revision });
-        }
-      })
-      .catch(() => {});
+    const syncStatus = () => {
+      defaultPersistenceAdapter
+        .getStatus()
+        .then((status) => {
+          if (status && typeof status.revision === "number") {
+            dispatch({ type: "SYNC_SERVER_REVISION", revision: status.revision });
+          }
+        })
+        .catch(() => {});
+    };
+
+    syncStatus();
+    window.addEventListener("focus", syncStatus);
+    return () => window.removeEventListener("focus", syncStatus);
   }, []);
 
   // Autosave recovery snapshot when dirty
@@ -368,41 +409,154 @@ export function EditorProvider({
     setRecoverySnapshot(null);
   }, []);
 
-  const saveToProject = useCallback(async (): Promise<boolean> => {
-    setSaveStatus("saving");
-    setSaveError(null);
-    setValidationErrors([]);
+  const saveToProject = useCallback(
+    async (options?: { force?: boolean }): Promise<boolean> => {
+      setSaveStatus("saving");
+      setSaveError(null);
+      setValidationErrors([]);
 
-    try {
-      const result = await defaultPersistenceAdapter.saveScene(state.scene, {
-        clientRevision: state.savedRevision,
-        activeAreaId: state.activeAreaId,
-      });
-
-      if (result.success) {
-        dispatch({
-          type: "MARK_SAVED",
-          revision: result.revision,
-          timestamp: result.timestamp,
+      try {
+        const result = await defaultPersistenceAdapter.saveScene(state.scene, {
+          clientRevision: state.savedRevision,
+          activeAreaId: state.activeAreaId,
+          appContent: state.appContent,
+          force: options?.force,
         });
-        clearRecoverySnapshot();
-        setSaveStatus("saved");
-        setTimeout(() => setSaveStatus("idle"), 4000);
-        return true;
-      } else {
-        setSaveStatus("error");
-        setSaveError(result.error ?? "Failed to save scene to project source.");
-        if (result.errors) {
-          setValidationErrors(result.errors);
+
+        if (result.success) {
+          dispatch({
+            type: "MARK_SAVED",
+            revision: result.revision,
+            timestamp: result.timestamp,
+          });
+          clearRecoverySnapshot();
+          setSaveStatus("saved");
+          setTimeout(() => setSaveStatus("idle"), 4000);
+          return true;
+        } else {
+          setSaveStatus("error");
+          setSaveError(result.error ?? "Failed to save scene to project source.");
+          if (result.errors) {
+            setValidationErrors(result.errors);
+          }
+          // On revision conflict, sync to server's current revision so next save/retry proceeds cleanly
+          if (result.code === "REVISION_CONFLICT" && typeof result.revision === "number") {
+            dispatch({ type: "SYNC_SERVER_REVISION", revision: result.revision });
+          }
+          return false;
         }
+      } catch (err) {
+        setSaveStatus("error");
+        setSaveError(`Network or server error: ${String(err)}`);
         return false;
       }
-    } catch (err) {
-      setSaveStatus("error");
-      setSaveError(`Network or server error: ${String(err)}`);
-      return false;
-    }
-  }, [state.scene, state.savedRevision, state.activeAreaId]);
+    },
+    [state.scene, state.savedRevision, state.activeAreaId, state.appContent],
+  );
+
+  const activeRoom = useMemo<RoomDefinition | null>(() => {
+    const area = state.scene.areas[state.activeAreaId];
+    if (!area) return null;
+    const room = area.rooms?.find((r) => r.id === state.activeRoomId);
+    if (room) return room;
+    if (area.rooms && area.rooms.length > 0) return area.rooms[0];
+    return null;
+  }, [state.scene.areas, state.activeAreaId, state.activeRoomId]);
+
+  const setActiveRoom = useCallback((roomId: string) => {
+    dispatch({ type: "SET_ACTIVE_ROOM", roomId });
+  }, []);
+
+  const toggleOverlay = useCallback((key: keyof StudioOverlaysConfig, enabled?: boolean) => {
+    dispatch({ type: "TOGGLE_OVERLAY", key, enabled });
+  }, []);
+
+  const setOverlays = useCallback((overlays: Partial<StudioOverlaysConfig>) => {
+    dispatch({ type: "SET_OVERLAYS", overlays });
+  }, []);
+
+  const addCollider = useCallback(
+    (objectId: string, collider: ColliderDefinition, historyLabel?: string) => {
+      dispatch({ type: "ADD_COLLIDER", objectId, collider, historyLabel });
+    },
+    [],
+  );
+
+  const updateCollider = useCallback(
+    (
+      objectId: string,
+      colliderId: string,
+      patch: Partial<ColliderDefinition>,
+      historyLabel?: string,
+    ) => {
+      dispatch({ type: "UPDATE_COLLIDER", objectId, colliderId, patch, historyLabel });
+    },
+    [],
+  );
+
+  const deleteCollider = useCallback(
+    (objectId: string, colliderId: string, historyLabel?: string) => {
+      dispatch({ type: "DELETE_COLLIDER", objectId, colliderId, historyLabel });
+    },
+    [],
+  );
+
+  const duplicateCollider = useCallback(
+    (objectId: string, colliderId: string, historyLabel?: string) => {
+      dispatch({ type: "DUPLICATE_COLLIDER", objectId, colliderId, historyLabel });
+    },
+    [],
+  );
+
+  const fitCollider = useCallback(
+    (objectId: string, colliderId: string, historyLabel?: string) => {
+      dispatch({ type: "FIT_COLLIDER", objectId, colliderId, historyLabel });
+    },
+    [],
+  );
+
+  const addRoom = useCallback(
+    (areaId: WorldAreaId, room: RoomDefinition, historyLabel?: string) => {
+      dispatch({ type: "ADD_ROOM", areaId, room, historyLabel });
+    },
+    [],
+  );
+
+  const updateRoom = useCallback(
+    (areaId: WorldAreaId, roomId: string, patch: Partial<RoomDefinition>, historyLabel?: string) => {
+      dispatch({ type: "UPDATE_ROOM", areaId, roomId, patch, historyLabel });
+    },
+    [],
+  );
+
+  const deleteRoom = useCallback(
+    (areaId: WorldAreaId, roomId: string, historyLabel?: string) => {
+      dispatch({ type: "DELETE_ROOM", areaId, roomId, historyLabel });
+    },
+    [],
+  );
+
+  const duplicateRoom = useCallback(
+    (areaId: WorldAreaId, roomId: string, historyLabel?: string) => {
+      dispatch({ type: "DUPLICATE_ROOM", areaId, roomId, historyLabel });
+    },
+    [],
+  );
+
+  const fitRoomBounds = useCallback(
+    (areaId: WorldAreaId, roomId?: string, padding?: number, historyLabel?: string) => {
+      dispatch({ type: "FIT_ROOM_BOUNDS", areaId, roomId, padding, historyLabel });
+    },
+    [],
+  );
+
+  const updateAppContent = useCallback((patch: Partial<AppContent>, historyLabel?: string) => {
+    dispatch({ type: "UPDATE_APP_CONTENT", patch, historyLabel });
+  }, []);
+
+  const setAppContentOpen = useCallback((isOpen: boolean) => {
+    dispatch({ type: "SET_APP_CONTENT_OPEN", isOpen });
+  }, []);
 
   const undo = useCallback(() => {
     dispatch({ type: "UNDO" });
@@ -443,6 +597,8 @@ export function EditorProvider({
       selectAll,
       deselectAll,
       setActiveArea,
+      setActiveRoom,
+      activeRoom,
       setEditorMode,
       setTransformMode,
       setTransformSpace,
@@ -450,8 +606,25 @@ export function EditorProvider({
       setTransformOrientation,
       toggleSnap,
       setSnapMode,
+      setSnapRotationStep,
+      setSnapScaleStep,
+      dropToSurface,
       set3DCursor,
       setActivePanel,
+      toggleOverlay,
+      setOverlays,
+      addCollider,
+      updateCollider,
+      deleteCollider,
+      duplicateCollider,
+      fitCollider,
+      addRoom,
+      updateRoom,
+      deleteRoom,
+      duplicateRoom,
+      fitRoomBounds,
+      updateAppContent,
+      setAppContentOpen,
       updateObject,
       batchUpdateObjects,
       renameObject,
@@ -492,6 +665,8 @@ export function EditorProvider({
       selectAll,
       deselectAll,
       setActiveArea,
+      setActiveRoom,
+      activeRoom,
       setEditorMode,
       setTransformMode,
       setTransformSpace,
@@ -499,8 +674,25 @@ export function EditorProvider({
       setTransformOrientation,
       toggleSnap,
       setSnapMode,
+      setSnapRotationStep,
+      setSnapScaleStep,
+      dropToSurface,
       set3DCursor,
       setActivePanel,
+      toggleOverlay,
+      setOverlays,
+      addCollider,
+      updateCollider,
+      deleteCollider,
+      duplicateCollider,
+      fitCollider,
+      addRoom,
+      updateRoom,
+      deleteRoom,
+      duplicateRoom,
+      fitRoomBounds,
+      updateAppContent,
+      setAppContentOpen,
       updateObject,
       batchUpdateObjects,
       renameObject,

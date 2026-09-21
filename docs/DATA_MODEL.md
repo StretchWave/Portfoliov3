@@ -75,9 +75,7 @@ instead.
 
 ## Profile and skills model
 
-- `PortfolioProfile` (`src/data/profile.ts`): one object for name, title,
-  intro paragraphs, career directions, and verified links. Pages import it
-  directly; no per-page copies.
+- `PortfolioProfile` (`src/data/profile.ts`): derived directly from `defaultAppContent.identity`, `about`, `careerDirections`, and `social`. Pages import it directly; no per-page copies.
 - `ProfileSkill` (`src/data/skills.ts`): id, name, category (a `SkillCategory`
   union), qualitative `proficiencyLabel`, `relatedProjectIds`, `evidence`, and
   `displayPriority`. Skills must reference registered project IDs and must be
@@ -85,6 +83,41 @@ instead.
 - Reverse lookups: `getSkillsForProject(projectId)` (detail pages) and
   `getSkillsByCategory()` (skills page).
 
+## App Content Model
+
+`src/types/content.ts` and `src/data/app-content.ts` define the single canonical source of truth for site-wide narrative copy:
+- `identity`: `siteName`, `author`, `title`, `description`
+- `hero`: `eyebrow`, `headline`, `shortDescription`, `primaryAction`, `secondaryAction`
+- `about`: `title`, `paragraphs: string[]`
+- `careerDirections`: array of `{ id, title, description, focusAreas, icon }`
+- `interactiveExperience`: `title`, `description`, `launchLabel`, `supportingText`
+- `seo`: `title`, `description`, `ogDescription`, `keywords`
+- `social`: `github`, `linkedin`, `email`, `resume`
+
+`src/lib/site-config.ts` and `src/data/profile.ts` consume `defaultAppContent` directly.
+
+## Spatial & Collision Data Models
+
+`src/types/scene.ts` defines the canonical spatial hierarchy:
+- `WorldManifest` (`src/data/scenes/manifest.ts`):
+  - `defaultAreaId: string`
+  - `areas: WorldAreaManifestEntry[]` (each with `id`, `name`, `defaultRoomId`, `rooms: RoomManifestEntry[]`)
+- `AreaSceneDefinition`:
+  - `id: string`, `version: number`, `metadata: AreaMetadata`, `bounds: AreaBounds`, `spawnPoint: Vec3`, `objects: SceneObject[]`
+  - Optional `rooms?: RoomDefinition[]` and `defaultRoomId?: string`
+- `RoomDefinition`:
+  - `id: string`, `name: string`, `description?: string`
+  - `bounds: AreaBounds`
+  - `spawnPoints: SpawnPoint[]`, `defaultSpawnPointId: string`
+  - `objects: SceneObject[]`
+  - `environment?: Partial<EnvironmentConfig>`
+- `ColliderDefinition`:
+  - `id: string`, `enabled: boolean`, `type: "box" | "sphere" | "capsule" | "cylinder"`
+  - `center?: Vec3`, `size?: Vec3`, `radius?: number`, `height?: number`, `rotation?: Vec3`
+  - `isTrigger?: boolean`
+  - Objects attach zero or more colliders via `colliders?: ColliderDefinition[]`.
+
 ## Future CMS/API migration
 
 Keep the `PortfolioProject` contract and registry methods. Replace `registeredProjects` with an adapter that normalizes CMS/API responses to the same serializable shape. Do not expose remote provider records directly to components or world code.
+

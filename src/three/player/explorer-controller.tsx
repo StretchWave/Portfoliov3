@@ -6,6 +6,7 @@ import { Vector3 } from "three";
 
 import { touchMovement } from "./touch-controls-state";
 import { cameraSettings } from "../camera/camera-settings";
+import { globalCollisionWorld } from "@/lib/collision-world";
 
 const movementKeys = new Set([
   "w",
@@ -176,7 +177,31 @@ export function ExplorerController({
         movement.normalize();
       }
       const speed = isFlight ? 6.4 : 4.2;
-      camera.position.addScaledVector(movement, Math.min(delta, 0.05) * speed);
+      const dt = Math.min(delta, 0.05);
+
+      if (isFlight) {
+        camera.position.addScaledVector(movement, dt * speed);
+      } else {
+        const desiredDelta: [number, number, number] = [
+          movement.x * dt * speed,
+          0,
+          movement.z * dt * speed,
+        ];
+        const currentPos: [number, number, number] = [
+          camera.position.x,
+          camera.position.y,
+          camera.position.z,
+        ];
+        const resolved = globalCollisionWorld.queryMovement(
+          currentPos,
+          desiredDelta,
+          0.35,
+          bounds,
+        );
+        camera.position.x = resolved[0];
+        camera.position.z = resolved[2];
+        camera.position.y = 1.7;
+      }
     }
 
     if (isFlight) {
@@ -194,10 +219,28 @@ export function ExplorerController({
       camera.position.x = Math.max(flightMinX, Math.min(flightMaxX, camera.position.x));
       camera.position.z = Math.max(flightMinZ, Math.min(flightMaxZ, camera.position.z));
     } else {
-      // Ground walking bounds
+      // Ground walking bounds & collision safety clamp
       camera.position.x = Math.max(bounds.minX, Math.min(bounds.maxX, camera.position.x));
       camera.position.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, camera.position.z));
       camera.position.y = 1.7;
+    }
+
+    // Query trigger colliders
+    const overlaps = globalCollisionWorld.queryOverlap([
+      camera.position.x,
+      camera.position.y,
+      camera.position.z,
+    ]);
+    if (overlaps.length > 0) {
+      for (const ov of overlaps) {
+        if (ov.isTrigger && typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("atlas:trigger-enter", {
+              detail: { objectId: ov.objectId, colliderId: ov.colliderId },
+            }),
+          );
+        }
+      }
     }
 
     cameraSettings.setAltitude(camera.position.y);

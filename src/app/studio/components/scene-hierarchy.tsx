@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { getAllProjects } from "@/features/portfolio/project-registry";
 import type { SceneObject } from "@/types/scene";
+import type { WorldAreaId } from "@/types/portfolio";
 import { useEditor } from "../state/editor-context";
 
 interface ContextMenuState {
@@ -11,7 +12,11 @@ interface ContextMenuState {
   objectId: string;
 }
 
-export function SceneHierarchy() {
+interface SceneHierarchyProps {
+  onOpenImportImagePlane?: () => void;
+}
+
+export function SceneHierarchy({ onOpenImportImagePlane }: SceneHierarchyProps = {}) {
   const {
     currentAreaScene,
     state,
@@ -136,21 +141,51 @@ export function SceneHierarchy() {
     return getAllProjects().filter((p) => p.exhibit?.area === currentAreaScene.id);
   }, [currentAreaScene.id]);
 
-  const handleCreateObject = (
-    type:
-      | "point-light"
-      | "portal"
-      | "wall"
-      | "column"
-      | "platform"
-      | "ring"
-      | "teleport-point"
-      | "trigger-volume"
-      | "audio-source"
-      | "info-display",
-  ) => {
-    setIsAddMenuOpen(false);
-    const suffix = Date.now().toString(36).slice(-4);
+  const handleCreateObject = useCallback(
+    (
+      type:
+        | "point-light"
+        | "portal"
+        | "wall"
+        | "column"
+        | "platform"
+        | "ring"
+        | "teleport-point"
+        | "trigger-volume"
+        | "audio-source"
+        | "info-display"
+        | "image-plane"
+        | "project-exhibit",
+    ) => {
+      setIsAddMenuOpen(false);
+      const suffix = Date.now().toString(36).slice(-4);
+
+      if (type === "image-plane") {
+        onOpenImportImagePlane?.();
+        return;
+      } else if (type === "project-exhibit") {
+        const firstProject = getAllProjects()[0];
+        addObject({
+          id: `exhibit-${suffix}`,
+          type: "info-display",
+          label: `${firstProject ? firstProject.name : "Project"} Exhibit`,
+          title: `${firstProject ? firstProject.name : "Project"} Exhibit`,
+          transform: { position: [0, 1.2, 0] },
+          interaction: {
+            enabled: true,
+            trigger: "click",
+            prompt: `Inspect ${firstProject ? firstProject.name : "Project"}`,
+            actions: [
+              {
+                type: "show-project",
+                projectId: firstProject?.id ?? "",
+              },
+            ],
+          },
+        });
+        setExpandedFolders((p) => ({ ...p, interactive: true }));
+        return;
+      }
 
     if (type === "point-light") {
       addObject({
@@ -226,12 +261,12 @@ export function SceneHierarchy() {
         type: "teleport-point",
         label: `Teleport Point ${suffix}`,
         transform: { position: [0, 0, 0] },
-        targetArea: currentAreaScene.id,
+        targetArea: currentAreaScene.id as WorldAreaId,
         interaction: {
           enabled: true,
           trigger: "proximity",
           prompt: "Teleport",
-          actions: [{ type: "teleport-player", targetArea: currentAreaScene.id }],
+          actions: [{ type: "teleport-player", targetArea: currentAreaScene.id as WorldAreaId }],
         },
       });
       setExpandedFolders((p) => ({ ...p, interactive: true }));
@@ -291,7 +326,7 @@ export function SceneHierarchy() {
       });
       setExpandedFolders((p) => ({ ...p, interactive: true }));
     }
-  };
+  }, [addObject, currentAreaScene.id, onOpenImportImagePlane]);
 
   const handleStartRename = (obj: SceneObject) => {
     setEditingId(obj.id);
@@ -338,6 +373,7 @@ export function SceneHierarchy() {
     {
       name: "Interactive & Gameplay",
       items: [
+        { label: "Project Exhibit", type: "project-exhibit" as const, icon: "📦" },
         { label: "Portal Gateway", type: "portal" as const, icon: "🌀" },
         { label: "Teleport Point", type: "teleport-point" as const, icon: "📍" },
         { label: "Trigger Volume", type: "trigger-volume" as const, icon: "🔲" },
@@ -346,8 +382,11 @@ export function SceneHierarchy() {
       ],
     },
     {
-      name: "Decorations",
-      items: [{ label: "Floating Ring", type: "ring" as const, icon: "✨" }],
+      name: "Decorations & Media",
+      items: [
+        { label: "Image as Plane", type: "image-plane" as const, icon: "🖼️" },
+        { label: "Floating Ring", type: "ring" as const, icon: "✨" },
+      ],
     },
   ];
 
@@ -777,23 +816,76 @@ export function SceneHierarchy() {
 
                   {(expandedFolders.exhibits || Boolean(filterQuery)) && (
                     <div className="ml-2 pl-2 border-l border-zinc-800/60 space-y-0.5 mt-0.5">
-                      {areaExhibits.map((project) => (
-                        <div
-                          key={project.id}
-                          onClick={() => selectObject(`exhibit-${project.slug}`)}
-                          className={`flex items-center justify-between rounded px-1.5 py-0.5 text-xs transition-colors cursor-pointer ${
-                            state.selectedObjectId === `exhibit-${project.slug}`
-                              ? "bg-cyan-500/20 text-cyan-200 border-l-2 border-cyan-400 font-medium"
-                              : "text-zinc-300 hover:bg-zinc-900/80 hover:text-zinc-100"
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5 truncate">
-                            <span className="text-cyan-400 shrink-0 text-xs">📦</span>
-                            <span className="truncate">{project.name}</span>
+                      {areaExhibits.map((project) => {
+                        const existingObj = currentAreaScene.objects.find(
+                          (o) =>
+                            o.id === `exhibit-${project.id}` ||
+                            o.id === `exhibit-${project.slug}` ||
+                            o.interaction?.actions?.some((a) => a.projectId === project.id),
+                        );
+                        const isSelected = existingObj
+                          ? state.selectedObjectId === existingObj.id
+                          : state.selectedObjectId === `exhibit-${project.slug}` ||
+                            state.selectedObjectId === `exhibit-${project.id}`;
+
+                        return (
+                          <div
+                            key={project.id}
+                            onClick={() => {
+                              if (existingObj) {
+                                selectObject(existingObj.id);
+                              } else {
+                                const exId = `exhibit-${project.id}`;
+                                addObject({
+                                  id: exId,
+                                  type: "info-display",
+                                  label: `${project.name} Exhibit`,
+                                  title: `${project.name} Exhibit`,
+                                  transform: {
+                                    position: project.exhibit?.position
+                                      ? [
+                                          project.exhibit.position[0],
+                                          project.exhibit.position[1],
+                                          project.exhibit.position[2],
+                                        ]
+                                      : [0, 1.2, 0],
+                                  },
+                                  interaction: {
+                                    enabled: true,
+                                    trigger: "click",
+                                    prompt: `Inspect ${project.name}`,
+                                    actions: [
+                                      {
+                                        type: "show-project",
+                                        projectId: project.id,
+                                      },
+                                    ],
+                                  },
+                                });
+                                selectObject(exId);
+                              }
+                            }}
+                            className={`flex items-center justify-between rounded px-1.5 py-0.5 text-xs transition-colors cursor-pointer ${
+                              isSelected
+                                ? "bg-cyan-500/20 text-cyan-200 border-l-2 border-cyan-400 font-medium"
+                                : "text-zinc-300 hover:bg-zinc-900/80 hover:text-zinc-100"
+                            }`}
+                            title={
+                              existingObj
+                                ? "Select and configure exhibit in Inspector"
+                                : "Add to Scene Objects to configure interaction, transform & snapping"
+                            }
+                          >
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className="text-cyan-400 shrink-0 text-xs">📦</span>
+                              <span className="truncate">{project.name}</span>
+                            </div>
+                            <span className="text-[9px] font-mono text-zinc-500">
+                              {existingObj ? "Configured" : "+ Control"}
+                            </span>
                           </div>
-                          <span className="text-[9px] font-mono text-zinc-500">Exhibit</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

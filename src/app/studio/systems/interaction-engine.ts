@@ -82,7 +82,14 @@ export async function executeInteractionAction(
 
       case "teleport-player": {
         const destination = action.targetArea ?? ctx.activeAreaId;
-        ctx.onTeleportPlayer?.(destination, action.teleportPointId);
+        ctx.onTeleportPlayer?.(destination, action.teleportPointId ?? action.targetSpawnPointId ?? action.targetRoomId);
+        soundManager.playWarpSound();
+        return true;
+      }
+
+      case "teleport-to-room": {
+        const destination = action.targetArea ?? ctx.activeAreaId;
+        ctx.onTeleportPlayer?.(destination, action.targetSpawnPointId ?? action.targetRoomId);
         soundManager.playWarpSound();
         return true;
       }

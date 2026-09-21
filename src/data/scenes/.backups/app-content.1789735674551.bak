@@ -1,0 +1,90 @@
+import type { AppContent } from "@/types/content";
+
+/**
+ * Single Canonical Source of Truth for Project Atlas App Content.
+ *
+ * Persisted and authored via Atlas Studio (/studio) and consumed across
+ * homepage, about page, layout metadata, openGraph, and JSON-LD.
+ */
+export const defaultAppContent: AppContent = {
+  identity: {
+    siteName: "Project Atlas",
+    author: "Mohammed Mishal",
+    browserTitle: "Project Atlas — Interactive Engineering Portfolio",
+    description:
+      "A web-native interactive portfolio for software, intelligent, and interactive systems by Mohammed Mishal.",
+    roleEyebrow: "Computer Engineering · systems & interactive worlds",
+  },
+  hero: {
+    eyebrow: "Computer Engineering · systems & interactive worlds",
+    headline: "I build systems — sometimes they become worlds.",
+    shortDescription:
+      "I build systems. Sometimes they are applications. Sometimes they are intelligent systems. Sometimes they are interactive worlds.",
+    primaryAction: {
+      label: "Browse projects",
+      href: "/projects",
+    },
+    secondaryAction: {
+      label: "Explore the 3D hub",
+      href: "/interactive",
+    },
+    githubLink: {
+      label: "GitHub",
+      href: "https://github.com/StretchWave",
+    },
+  },
+  about: {
+    title: "Systems are the medium.",
+    paragraphs: [
+      "I am a Computer Engineering student with a career direction across software engineering, game development, and interactive systems. The work I keep returning to is the same in all three: understanding a system end to end, then building it with clear boundaries and honest engineering.",
+      "That shows up as desktop applications with real platform integration, data pipelines and decision-support systems, full-stack prototypes with tests, and a growing interest in game mechanics and 3D experiences. I treat breadth as a feature: each area teaches constraints that make the others better.",
+      "This portfolio is built the same way. The conventional site is the fast, accessible path to my work; the optional 3D hub is an interactive layer for people who want to explore the projects spatially.",
+    ],
+  },
+  careerDirections: [
+    {
+      title: "Software Engineering",
+      description:
+        "Desktop and full-stack systems with real platform constraints — media integration, packaging, release automation, and tooling that people actually run.",
+    },
+    {
+      title: "Game Development",
+      description:
+        "Combat and interaction design, stances and timing systems, and the path from game concept to playable mechanics. The current PvP concept is in design; nothing is claimed as shipped until it exists.",
+    },
+    {
+      title: "Interactive Systems & Creative Technology",
+      description:
+        "3D environments, browser-native interactive experiences, and interfaces that make technical systems legible — including this portfolio's own WebGL hub.",
+    },
+  ],
+  interactiveExperience: {
+    title: "Spatial Systems Hub",
+    description:
+      "A 3D spatial interface connecting engineering districts, interactive exhibits, and real-time architectural models.",
+    launchLabel: "Launch Interactive Hub",
+  },
+  seo: {
+    title: "Project Atlas | Mohammed Mishal",
+    description:
+      "A web-native interactive portfolio for software, intelligent, and interactive systems by Mohammed Mishal.",
+    keywords: [
+      "Software Engineering",
+      "Interactive 3D",
+      "Three.js",
+      "React Three Fiber",
+      "Game Development",
+      "Systems Architecture",
+      "Portfolio",
+    ],
+    openGraphTitle: "Project Atlas | Mohammed Mishal",
+    openGraphDescription:
+      "A web-native interactive portfolio for software, intelligent, and interactive systems.",
+  },
+  social: {
+    github: "https://github.com/StretchWave",
+    linkedin: "",
+    email: "",
+    resume: "",
+  },
+};

@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { worldAreaIds, type WorldAreaId } from "@/types/portfolio";
+import type { StudioOverlaysConfig } from "../state/editor-reducer";
 import { useEditor } from "../state/editor-context";
 
 const AREA_LABELS: Record<WorldAreaId, string> = {
@@ -11,20 +13,39 @@ const AREA_LABELS: Record<WorldAreaId, string> = {
   "creative-workshop": "Creative Workshop",
 };
 
+const OVERLAY_ITEMS: { key: keyof StudioOverlaysConfig; label: string; icon: string }[] = [
+  { key: "colliders", label: "Colliders", icon: "📦" },
+  { key: "triggers", label: "Triggers", icon: "⚡" },
+  { key: "roomBounds", label: "Room Bounds", icon: "📐" },
+  { key: "spawnPoints", label: "Spawn Points", icon: "📍" },
+  { key: "grid", label: "Ground Grid", icon: "▦" },
+  { key: "cursor3D", label: "3D Cursor", icon: "⊕" },
+];
+
 interface StudioTopBarProps {
   onOpenSceneData: () => void;
   onOpenCommandPalette: () => void;
   onOpenShortcuts: () => void;
+  onOpenRoomManagement?: () => void;
+  onOpenAppContent?: () => void;
+  onOpenImportImagePlane?: () => void;
 }
 
 export function StudioTopBar({
   onOpenSceneData,
   onOpenCommandPalette,
   onOpenShortcuts,
+  onOpenRoomManagement,
+  onOpenAppContent,
+  onOpenImportImagePlane,
 }: StudioTopBarProps) {
   const {
     state,
     setActiveArea,
+    setActiveRoom,
+    activeRoom,
+    toggleOverlay,
+    setAppContentOpen,
     setEditorMode,
     undo,
     redo,
@@ -36,10 +57,17 @@ export function StudioTopBar({
     setIsReviewOpen,
   } = useEditor();
 
+  const [isOverlaysOpen, setIsOverlaysOpen] = useState(false);
+
+  const currentArea = state.scene.areas[state.activeAreaId];
+  const rooms = currentArea?.rooms && currentArea.rooms.length > 0
+    ? currentArea.rooms
+    : [{ id: "default", name: "Default Room" }];
+
   return (
     <header className="flex h-11 w-full shrink-0 items-center justify-between border-b border-zinc-800/80 bg-zinc-950 px-3 select-none z-30 font-sans">
-      {/* Left: Brand, District Selector, Unsaved Status */}
-      <div className="flex items-center gap-2.5">
+      {/* Left: Brand, District & Room Selector, Save Status */}
+      <div className="flex items-center gap-2">
         {/* Brand Link */}
         <Link
           href="/"
@@ -49,7 +77,7 @@ export function StudioTopBar({
           <div className="flex h-4 w-4 items-center justify-center rounded bg-cyan-500/10 border border-cyan-500/30 text-[10px] text-cyan-400 font-mono font-bold group-hover:bg-cyan-500/20">
             A
           </div>
-          <span className="font-mono text-xs font-medium tracking-wider text-zinc-100">
+          <span className="font-mono text-xs font-medium tracking-wider text-zinc-100 hidden sm:inline">
             Atlas Studio
           </span>
         </Link>
@@ -61,7 +89,7 @@ export function StudioTopBar({
           <select
             value={state.activeAreaId}
             onChange={(e) => setActiveArea(e.target.value as WorldAreaId)}
-            className="appearance-none rounded border border-zinc-800 bg-zinc-900/90 pl-2.5 pr-7 py-1 text-xs font-medium text-zinc-200 transition-colors hover:border-zinc-700 focus:border-cyan-500 focus:outline-none cursor-pointer"
+            className="appearance-none rounded border border-zinc-800 bg-zinc-900/90 pl-2.5 pr-7 py-1 text-xs font-medium text-zinc-200 transition-colors hover:border-zinc-700 focus:border-cyan-500 focus:outline-none cursor-pointer max-w-[140px] md:max-w-[180px] truncate"
             title="Switch active world district"
           >
             {worldAreaIds.map((id) => (
@@ -75,6 +103,38 @@ export function StudioTopBar({
           </div>
         </div>
 
+        {/* Room Selector & Management */}
+        <div className="flex items-center gap-1">
+          <div className="relative flex items-center">
+            <select
+              value={state.activeRoomId || rooms[0]?.id || "default"}
+              onChange={(e) => setActiveRoom(e.target.value)}
+              className="appearance-none rounded border border-cyan-900/40 bg-zinc-900/90 pl-2.5 pr-6 py-1 text-xs font-medium text-cyan-300 transition-colors hover:border-cyan-700 focus:border-cyan-500 focus:outline-none cursor-pointer max-w-[110px] md:max-w-[160px] truncate"
+              title="Switch active room within district"
+            >
+              {rooms.map((r) => (
+                <option key={r.id} value={r.id} className="bg-zinc-900 text-zinc-200">
+                  {r.name || r.id}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute right-2 text-cyan-600 text-[9px]">
+              ▼
+            </div>
+          </div>
+
+          {onOpenRoomManagement && (
+            <button
+              type="button"
+              onClick={onOpenRoomManagement}
+              className="flex h-6 w-6 items-center justify-center rounded border border-zinc-850 bg-zinc-900/80 text-zinc-400 hover:text-cyan-300 hover:border-zinc-700 transition-colors cursor-pointer"
+              title="Manage Rooms, bounds, and templates"
+            >
+              <span className="text-[11px]">⊞</span>
+            </button>
+          )}
+        </div>
+
         {/* Save / Status Indicator */}
         <div className="ml-1 flex items-center gap-1.5">
           {saveStatus === "saving" ? (
@@ -83,15 +143,25 @@ export function StudioTopBar({
               <span>Saving...</span>
             </div>
           ) : saveStatus === "error" ? (
-            <button
-              type="button"
-              onClick={() => setIsReviewOpen(true)}
-              className="flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/10 px-2.5 py-0.5 text-[11px] font-medium text-rose-400 hover:bg-rose-500/20 transition-colors cursor-pointer"
-              title={saveError ?? "Save failed. Click to review."}
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
-              <span>Save Error</span>
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => saveToProject({ force: true })}
+                className="flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-rose-300 hover:bg-rose-500/25 transition-colors cursor-pointer shadow-xs"
+                title={`${saveError ?? "Save failed"}. Click to force save / retry.`}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
+                <span>Save Error (Retry)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsReviewOpen(true)}
+                className="rounded px-1.5 py-0.5 text-[10px] text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Review error details and diffs"
+              >
+                Review
+              </button>
+            </div>
           ) : state.isDirty ? (
             <div className="flex items-center gap-1">
               <button
@@ -301,6 +371,86 @@ export function StudioTopBar({
             <span className="hidden sm:inline">Redo</span>
           </button>
         </div>
+
+        {/* Overlays Dropdown */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsOverlaysOpen(!isOverlaysOpen)}
+            className={`flex items-center gap-1.5 rounded border px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
+              state.overlays.colliders || state.overlays.triggers || state.overlays.roomBounds
+                ? "border-cyan-500/50 bg-cyan-950/40 text-cyan-300"
+                : "border-zinc-800 bg-zinc-900/80 text-zinc-300 hover:border-zinc-700 hover:text-white"
+            }`}
+            title="Toggle Viewport Overlays (Colliders, Triggers, Bounds, Grid)"
+          >
+            <span className="text-[10px]">👁</span>
+            <span className="hidden md:inline">Overlays</span>
+            <span className="text-[9px] opacity-70">▼</span>
+          </button>
+
+          {isOverlaysOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setIsOverlaysOpen(false)}
+              />
+              <div className="absolute right-0 mt-1.5 w-48 rounded-lg border border-zinc-800 bg-zinc-900/95 p-1.5 shadow-2xl backdrop-blur-md z-50 animate-in fade-in zoom-in-95">
+                <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 border-b border-zinc-800/80 mb-1">
+                  Viewport Overlays
+                </div>
+                {OVERLAY_ITEMS.map((item) => {
+                  const active = !!state.overlays[item.key];
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => toggleOverlay(item.key)}
+                      className="flex w-full items-center justify-between rounded px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800/80 transition-colors cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>{item.icon}</span>
+                        <span>{item.label}</span>
+                      </span>
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          active ? "bg-cyan-400 shadow-xs shadow-cyan-400/50" : "bg-zinc-700"
+                        }`}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* App Content Editor Trigger */}
+        <button
+          type="button"
+          onClick={() => {
+            if (onOpenAppContent) onOpenAppContent();
+            else setAppContentOpen(true);
+          }}
+          className="flex items-center gap-1.5 rounded border border-purple-500/40 bg-purple-950/30 px-2.5 py-1 text-xs font-medium text-purple-300 hover:border-purple-400 hover:bg-purple-900/40 transition-colors cursor-pointer"
+          title="Author Site Identity, Hero, About, Careers, SEO, and Social Links"
+        >
+          <span className="text-[11px]">📝</span>
+          <span className="hidden sm:inline">App Content</span>
+        </button>
+
+        {/* Import Image as Plane */}
+        {onOpenImportImagePlane && (
+          <button
+            type="button"
+            onClick={onOpenImportImagePlane}
+            className="flex items-center gap-1.5 rounded border border-cyan-500/40 bg-cyan-950/30 px-2.5 py-1 text-xs font-medium text-cyan-300 hover:border-cyan-400 hover:bg-cyan-900/40 transition-colors cursor-pointer"
+            title="Import image file or URL as 3D Plane Mesh"
+          >
+            <span className="text-[11px]">🖼️</span>
+            <span className="hidden lg:inline">Image Plane</span>
+          </button>
+        )}
 
         {/* Scene Data Export / Import */}
         <button

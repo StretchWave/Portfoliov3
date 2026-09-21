@@ -10,12 +10,17 @@ interface RenameDialogProps {
 
 export function RenameDialog({ isOpen, onClose }: RenameDialogProps) {
   const { selectedObject, renameObject } = useEditor();
-  const [name, setName] = useState("");
+  const [name, setName] = useState(() => selectedObject?.label ?? selectedObject?.id ?? "");
+  const [prevId, setPrevId] = useState(() => selectedObject?.id);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  if (selectedObject && selectedObject.id !== prevId) {
+    setPrevId(selectedObject.id);
+    setName(selectedObject.label ?? selectedObject.id);
+  }
 
   useEffect(() => {
     if (isOpen && selectedObject) {
-      setName(selectedObject.label ?? selectedObject.id);
       setTimeout(() => {
         inputRef.current?.focus();
         inputRef.current?.select();

@@ -30,6 +30,7 @@ export function StudioToolbar({
     setTransformOrientation,
     toggleSnap,
     setSnapMode,
+    dropToSurface,
     selectedObject,
     updateObject,
   } = useEditor();
@@ -167,6 +168,7 @@ export function StudioToolbar({
           </div>
 
           {/* Snapping Toggle */}
+          {/* Snapping Controls */}
           <div className="flex items-center rounded border border-zinc-800/80 bg-zinc-900/60 p-0.5">
             <button
               type="button"
@@ -210,7 +212,39 @@ export function StudioToolbar({
                 Surface
               </option>
             </select>
+
+            {/* Grid Step Increment Selector */}
+            {state.snapMode === "increment" && (
+              <select
+                value={state.snapStep}
+                onChange={(e) => setSnapMode("increment", parseFloat(e.target.value))}
+                className="appearance-none border-l border-zinc-800/80 bg-transparent pl-1.5 pr-1 py-0.5 text-[10px] font-mono text-amber-400 hover:text-amber-300 focus:outline-none cursor-pointer"
+                title="Grid Snapping Step Size"
+              >
+                <option value={0.1} className="bg-zinc-900 text-zinc-200">0.1m</option>
+                <option value={0.25} className="bg-zinc-900 text-zinc-200">0.25m</option>
+                <option value={0.5} className="bg-zinc-900 text-zinc-200">0.5m</option>
+                <option value={1.0} className="bg-zinc-900 text-zinc-200">1.0m</option>
+                <option value={2.0} className="bg-zinc-900 text-zinc-200">2.0m</option>
+              </select>
+            )}
           </div>
+
+          {/* Quick Action: Drop to Surface */}
+          <button
+            type="button"
+            onClick={() => dropToSurface()}
+            disabled={!selectedObject}
+            className={`flex items-center gap-1 rounded border px-2 py-1 text-xs font-medium transition-colors ${
+              selectedObject
+                ? "border-cyan-500/30 bg-cyan-950/20 text-cyan-300 hover:bg-cyan-900/40 hover:text-cyan-100 cursor-pointer"
+                : "border-zinc-800/40 bg-zinc-900/30 text-zinc-600 cursor-not-allowed"
+            }`}
+            title="Drop selected object flush to the floor or surface beneath it (End)"
+          >
+            <span className="text-[11px]">⬇</span>
+            <span>Drop to Surface</span>
+          </button>
 
           {/* Viewport Grid Toggle */}
           <button

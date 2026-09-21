@@ -38,7 +38,7 @@ export const atlasHubScene: AreaSceneDefinition = {
       "label": "Entrance Amber Light",
       "transform": {
         "position": [
-          10,
+          0,
           2.8,
           5.6
         ]

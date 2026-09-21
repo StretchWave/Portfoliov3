@@ -6,7 +6,10 @@ export type WorldPosition = readonly [number, number, number];
 export type InteractionEvent =
   | { kind: "open-project"; projectId: string }
   | { kind: "trigger-action"; actionId: string }
-  | { kind: "travel-to-area"; targetArea: WorldAreaId; label: string };
+  | { kind: "travel-to-area"; targetArea: WorldAreaId | string; label?: string }
+  | { kind: "teleport-to-room"; targetArea?: WorldAreaId | string; roomId: string; spawnPointId?: string }
+  | { kind: "show-information"; title: string; description?: string }
+  | { kind: "open-link"; url: string };
 
 export interface InteractableDefinition {
   id: string;

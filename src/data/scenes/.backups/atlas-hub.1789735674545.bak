@@ -38,7 +38,7 @@ export const atlasHubScene: AreaSceneDefinition = {
       "label": "Entrance Amber Light",
       "transform": {
         "position": [
-          10,
+          0,
           2.8,
           5.6
         ]
@@ -124,6 +124,60 @@ export const atlasHubScene: AreaSceneDefinition = {
       "targetLabel": "Creative Workshop",
       "subtitle": "Interaction & Games",
       "accent": "#f472d0"
+    },
+    {
+      "id": "hub-wall-back",
+      "type": "architecture",
+      "label": "Back Wall",
+      "moduleType": "wall-segment",
+      "transform": {
+        "position": [
+          0,
+          2.2,
+          -8.9
+        ]
+      },
+      "props": {
+        "width": 17.7,
+        "axis": "x",
+        "railSide": 1
+      }
+    },
+    {
+      "id": "hub-wall-left",
+      "type": "architecture",
+      "label": "Left Wall",
+      "moduleType": "wall-segment",
+      "transform": {
+        "position": [
+          -8.9,
+          2.2,
+          -0.7
+        ]
+      },
+      "props": {
+        "width": 16.4,
+        "axis": "z",
+        "railSide": 1
+      }
+    },
+    {
+      "id": "hub-wall-right",
+      "type": "architecture",
+      "label": "Right Wall",
+      "moduleType": "wall-segment",
+      "transform": {
+        "position": [
+          8.9,
+          2.2,
+          -0.7
+        ]
+      },
+      "props": {
+        "width": 16.4,
+        "axis": "z",
+        "railSide": -1
+      }
     },
     {
       "id": "hub-rib-l-1",

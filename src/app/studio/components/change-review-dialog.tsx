@@ -143,6 +143,8 @@ interface ChangeReviewDialogProps {
   onClose: () => void;
   onSave: () => void;
   isSaving: boolean;
+  errorMessage?: string | null;
+  onForceSave?: () => void;
 }
 
 export function ChangeReviewDialog({
@@ -151,6 +153,8 @@ export function ChangeReviewDialog({
   onClose,
   onSave,
   isSaving,
+  errorMessage,
+  onForceSave,
 }: ChangeReviewDialogProps) {
   const diffGroups = useMemo(
     () => computeSceneDiffs(savedScene, currentScene),
@@ -206,6 +210,29 @@ export function ChangeReviewDialog({
             ✕
           </button>
         </div>
+
+        {/* Error Banner if save failed or conflicted */}
+        {errorMessage && (
+          <div className="rounded-lg border border-rose-500/40 bg-rose-950/30 p-3 text-xs text-rose-300 flex items-start justify-between gap-3 shrink-0">
+            <div className="space-y-1">
+              <div className="font-semibold flex items-center gap-1.5 text-rose-200">
+                <span>⚠️</span>
+                <span>Save Issue Detected</span>
+              </div>
+              <p className="text-rose-300/90 text-[11px]">{errorMessage}</p>
+            </div>
+            {onForceSave && (
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={onForceSave}
+                className="shrink-0 rounded bg-rose-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-rose-500 transition-colors cursor-pointer"
+              >
+                Force Overwrite
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Content List */}
         <div className="flex-1 overflow-y-auto space-y-4 pr-1">

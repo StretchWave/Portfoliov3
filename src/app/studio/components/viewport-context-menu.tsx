@@ -8,7 +8,8 @@ export type AddObjectType =
   | "column"
   | "platform"
   | "portal"
-  | "ring";
+  | "ring"
+  | "image-plane";
 
 interface ViewportContextMenuProps {
   x: number;
@@ -24,6 +25,7 @@ interface ViewportContextMenuProps {
   onResetTransform: () => void;
   onDeselect: () => void;
   onAddObject: (type: AddObjectType) => void;
+  onOpenImportImagePlane?: () => void;
 }
 
 export function ViewportContextMenu({
@@ -40,6 +42,7 @@ export function ViewportContextMenu({
   onResetTransform,
   onDeselect,
   onAddObject,
+  onOpenImportImagePlane,
 }: ViewportContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
@@ -107,8 +110,11 @@ export function ViewportContextMenu({
       items: [{ label: "Portal Gateway", type: "portal", icon: "🌀" }],
     },
     {
-      category: "Decorations",
-      items: [{ label: "Floating Ring", type: "ring", icon: "✨" }],
+      category: "Decorations & Media",
+      items: [
+        { label: "Image as Plane", type: "image-plane", icon: "🖼️" },
+        { label: "Floating Ring", type: "ring", icon: "✨" },
+      ],
     },
   ];
 
@@ -195,7 +201,11 @@ export function ViewportContextMenu({
                     type="button"
                     role="menuitem"
                     onClick={() => {
-                      onAddObject(item.type);
+                      if (item.type === "image-plane") {
+                        onOpenImportImagePlane?.();
+                      } else {
+                        onAddObject(item.type);
+                      }
                       onClose();
                     }}
                     className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-zinc-300 bg-transparent hover:bg-zinc-800 hover:text-cyan-300 transition-colors"

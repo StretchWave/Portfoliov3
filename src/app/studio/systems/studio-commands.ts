@@ -160,6 +160,15 @@ export const STUDIO_COMMANDS: StudioCommand[] = [
     isEnabled: (ctx) => Boolean(ctx.state.selectedObjectId),
   },
   {
+    id: "object.drop_to_surface",
+    label: "Drop to Surface",
+    category: "Object",
+    shortcut: "End",
+    description: "Drop selected object flush to the floor or surface beneath it",
+    run: (ctx) => ctx.dispatch({ type: "DROP_TO_SURFACE" }),
+    isEnabled: (ctx) => Boolean(ctx.state.selectedObjectId || ctx.state.selectedObjectIds.length > 0),
+  },
+  {
     id: "object.add_menu",
     label: "Add Object Menu",
     category: "Object",

@@ -19,7 +19,12 @@ import type {
   PointLightObject,
   PortalObject,
   ArchitectureObject,
+  ImagePlaneObject,
+  ColliderDefinition,
+  RoomDefinition,
+  SpawnPoint,
 } from "@/types/scene";
+import type { AppContent } from "@/types/content";
 
 // ─── Validation Result ───────────────────────────────────────────────────────
 
@@ -116,6 +121,21 @@ function validateArchitecture(obj: ArchitectureObject, errors: ValidationError[]
   }
 }
 
+function validateImagePlane(obj: ImagePlaneObject, errors: ValidationError[], areaId: string): void {
+  if (!isVec3(obj.transform?.position)) {
+    errors.push({ severity: "error", objectId: obj.id, areaId, field: "transform.position", message: `Image plane "${obj.id}" has invalid position.`, code: "INVALID_POSITION" });
+  }
+  if (!obj.imageUrl || typeof obj.imageUrl !== "string" || obj.imageUrl.trim().length === 0) {
+    errors.push({ severity: "error", objectId: obj.id, areaId, field: "imageUrl", message: `Image plane "${obj.id}" is missing image URL or data source.`, code: "MISSING_REQUIRED_FIELD" });
+  }
+  if (!isFinitePositive(obj.width)) {
+    errors.push({ severity: "error", objectId: obj.id, areaId, field: "width", message: `Image plane "${obj.id}" has invalid width.`, code: "INVALID_DIMENSION" });
+  }
+  if (!isFinitePositive(obj.height)) {
+    errors.push({ severity: "error", objectId: obj.id, areaId, field: "height", message: `Image plane "${obj.id}" has invalid height.`, code: "INVALID_DIMENSION" });
+  }
+}
+
 function validateSceneObject(obj: SceneObject, errors: ValidationError[], areaId: string): void {
   // Common: all objects must have a non-empty string ID
   if (!obj.id || typeof obj.id !== "string" || obj.id.trim().length === 0) {
@@ -132,6 +152,9 @@ function validateSceneObject(obj: SceneObject, errors: ValidationError[], areaId
       break;
     case "architecture":
       validateArchitecture(obj, errors, areaId);
+      break;
+    case "image-plane":
+      validateImagePlane(obj as ImagePlaneObject, errors, areaId);
       break;
     case "decoration":
     case "teleport-point":
@@ -212,13 +235,23 @@ function validateSceneObject(obj: SceneObject, errors: ValidationError[], areaId
             }
           }
         }
-        if (act.type === "teleport-player" && !act.teleportPointId && !act.targetArea) {
+        if (act.type === "teleport-player" && !act.teleportPointId && !act.targetArea && !act.targetRoomId) {
           errors.push({
             severity: "error",
             objectId: obj.id,
             areaId,
             field: `interaction.actions[${idx}]`,
             message: `Object "${obj.id}" teleport action requires targetArea or teleportPointId.`,
+            code: "MISSING_REQUIRED_FIELD",
+          });
+        }
+        if (act.type === "teleport-to-room" && !act.targetRoomId) {
+          errors.push({
+            severity: "error",
+            objectId: obj.id,
+            areaId,
+            field: `interaction.actions[${idx}].targetRoomId`,
+            message: `Object "${obj.id}" action teleport-to-room requires targetRoomId.`,
             code: "MISSING_REQUIRED_FIELD",
           });
         }
@@ -232,6 +265,133 @@ function validateSceneObject(obj: SceneObject, errors: ValidationError[], areaId
             code: "INVALID_PORTAL_TARGET",
           });
         }
+        if (act.type === "open-link" && (!act.url || typeof act.url !== "string")) {
+          errors.push({
+            severity: "error",
+            objectId: obj.id,
+            areaId,
+            field: `interaction.actions[${idx}].url`,
+            message: `Object "${obj.id}" action open-link requires a valid url.`,
+            code: "MISSING_REQUIRED_FIELD",
+          });
+        }
+      });
+    }
+  }
+
+  // Validate Colliders if present
+  if (obj.colliders && Array.isArray(obj.colliders)) {
+    const colliderIds = new Set<string>();
+    for (const col of obj.colliders) {
+      if (!col.id || typeof col.id !== "string" || col.id.trim().length === 0) {
+        errors.push({
+          severity: "error",
+          objectId: obj.id,
+          areaId,
+          field: "colliders.id",
+          message: `Object "${obj.id}" has collider with missing or empty ID.`,
+          code: "MISSING_ID",
+        });
+        continue;
+      }
+      if (colliderIds.has(col.id)) {
+        errors.push({
+          severity: "error",
+          objectId: obj.id,
+          areaId,
+          field: "colliders.id",
+          message: `Object "${obj.id}" has duplicate collider ID "${col.id}".`,
+          code: "DUPLICATE_COLLIDER_ID",
+        });
+      }
+      colliderIds.add(col.id);
+
+      validateCollider(col, errors, obj.id, areaId);
+    }
+  }
+}
+
+function validateCollider(
+  collider: ColliderDefinition,
+  errors: ValidationError[],
+  objectId: string,
+  areaId: string,
+): void {
+  const validTypes = ["box", "sphere", "capsule", "cylinder"];
+  if (!validTypes.includes(collider.type)) {
+    errors.push({
+      severity: "error",
+      objectId,
+      areaId,
+      field: "colliders.type",
+      message: `Collider "${collider.id}" has invalid type "${collider.type}".`,
+      code: "INVALID_COLLIDER_TYPE",
+    });
+  }
+
+  if (collider.center !== undefined && !isVec3(collider.center)) {
+    errors.push({
+      severity: "error",
+      objectId,
+      areaId,
+      field: "colliders.center",
+      message: `Collider "${collider.id}" has invalid center offset.`,
+      code: "INVALID_POSITION",
+    });
+  }
+
+  if (collider.rotation !== undefined && !isVec3(collider.rotation)) {
+    errors.push({
+      severity: "error",
+      objectId,
+      areaId,
+      field: "colliders.rotation",
+      message: `Collider "${collider.id}" has invalid rotation.`,
+      code: "INVALID_ROTATION",
+    });
+  }
+
+  if (collider.type === "box") {
+    if (!collider.size || !isVec3(collider.size) || collider.size.some((s) => s <= 0)) {
+      errors.push({
+        severity: "error",
+        objectId,
+        areaId,
+        field: "colliders.size",
+        message: `Box collider "${collider.id}" must have positive dimensions [w, h, d].`,
+        code: "INVALID_DIMENSIONS",
+      });
+    }
+  } else if (collider.type === "sphere") {
+    if (!isFinitePositive(collider.radius)) {
+      errors.push({
+        severity: "error",
+        objectId,
+        areaId,
+        field: "colliders.radius",
+        message: `Sphere collider "${collider.id}" must have positive radius.`,
+        code: "INVALID_DIMENSIONS",
+      });
+    }
+  } else if (collider.type === "capsule" || collider.type === "cylinder") {
+    if (!isFinitePositive(collider.radius)) {
+      errors.push({
+        severity: "error",
+        objectId,
+        areaId,
+        field: "colliders.radius",
+        message: `${collider.type} collider "${collider.id}" must have positive radius.`,
+        code: "INVALID_DIMENSIONS",
+      });
+    }
+    if (!isFinitePositive(collider.height)) {
+      errors.push({
+        severity: "error",
+        objectId,
+        areaId,
+        field: "colliders.height",
+        message: `${collider.type} collider "${collider.id}" must have positive height.`,
+        code: "INVALID_DIMENSIONS",
       });
     }
   }
@@ -299,6 +459,94 @@ function validateAreaScene(area: AreaSceneDefinition, errors: ValidationError[])
     }
     if (obj.id) objectIds.add(obj.id);
     validateSceneObject(obj, errors, areaId);
+  }
+
+  // Validate Rooms if present
+  if (area.rooms && Array.isArray(area.rooms)) {
+    const roomIds = new Set<string>();
+    for (const room of area.rooms) {
+      if (!room.id || typeof room.id !== "string" || room.id.trim().length === 0) {
+        errors.push({
+          severity: "error",
+          areaId,
+          field: "rooms.id",
+          message: `Area "${areaId}" has room with missing ID.`,
+          code: "MISSING_ID",
+        });
+        continue;
+      }
+      if (roomIds.has(room.id)) {
+        errors.push({
+          severity: "error",
+          areaId,
+          field: "rooms.id",
+          message: `Area "${areaId}" has duplicate room ID "${room.id}".`,
+          code: "DUPLICATE_ROOM_ID",
+        });
+      }
+      roomIds.add(room.id);
+
+      // Validate room bounds
+      if (room.bounds) {
+        validateBounds(room.bounds, errors, `${areaId}/${room.id}`);
+      }
+
+      // Validate room spawn points
+      if (room.spawnPoints && Array.isArray(room.spawnPoints)) {
+        const spawnIds = new Set<string>();
+        for (const sp of room.spawnPoints) {
+          if (!sp.id) {
+            errors.push({
+              severity: "error",
+              areaId,
+              field: "rooms.spawnPoints.id",
+              message: `Room "${room.id}" in area "${areaId}" has spawn point with missing ID.`,
+              code: "MISSING_ID",
+            });
+          } else if (spawnIds.has(sp.id)) {
+            errors.push({
+              severity: "error",
+              areaId,
+              field: "rooms.spawnPoints.id",
+              message: `Room "${room.id}" has duplicate spawn point ID "${sp.id}".`,
+              code: "DUPLICATE_SPAWN_ID",
+            });
+          }
+          if (sp.id) spawnIds.add(sp.id);
+
+          const spawnPos = sp.position ?? sp.transform?.position;
+          if (!isVec3(spawnPos)) {
+            errors.push({
+              severity: "error",
+              areaId,
+              field: "rooms.spawnPoints.position",
+              message: `Spawn point "${sp.id}" in room "${room.id}" has invalid position.`,
+              code: "INVALID_POSITION",
+            });
+          }
+        }
+
+        if (room.defaultSpawnPointId && !spawnIds.has(room.defaultSpawnPointId)) {
+          errors.push({
+            severity: "warning",
+            areaId,
+            field: "rooms.defaultSpawnPointId",
+            message: `Room "${room.id}" defaultSpawnPointId "${room.defaultSpawnPointId}" does not match any registered spawn point.`,
+            code: "MISSING_SPAWN_REFERENCE",
+          });
+        }
+      }
+    }
+
+    if (area.defaultRoomId && !roomIds.has(area.defaultRoomId)) {
+      errors.push({
+        severity: "error",
+        areaId,
+        field: "defaultRoomId",
+        message: `Area "${areaId}" defaultRoomId "${area.defaultRoomId}" does not exist in area rooms.`,
+        code: "MISSING_DEFAULT_ROOM",
+      });
+    }
   }
 
   // Light budget warning
@@ -408,6 +656,72 @@ export function validateScene(scene: AtlasSceneDefinition): ValidationResult {
 export function validateAreaScene_standalone(area: AreaSceneDefinition): ValidationResult {
   const errors: ValidationError[] = [];
   validateAreaScene(area, errors);
+  return {
+    valid: errors.filter((e) => e.severity === "error").length === 0,
+    errors,
+  };
+}
+
+/**
+ * Validates canonical AppContent for completeness and safe formatting.
+ */
+export function validateAppContent(content: AppContent): ValidationResult {
+  const errors: ValidationError[] = [];
+
+  if (!content.identity?.siteName || content.identity.siteName.trim().length === 0) {
+    errors.push({
+      severity: "error",
+      field: "identity.siteName",
+      message: "App content is missing siteName.",
+      code: "MISSING_REQUIRED_FIELD",
+    });
+  }
+
+  if (!content.identity?.author || content.identity.author.trim().length === 0) {
+    errors.push({
+      severity: "error",
+      field: "identity.author",
+      message: "App content is missing author name.",
+      code: "MISSING_REQUIRED_FIELD",
+    });
+  }
+
+  if (!content.identity?.browserTitle || content.identity.browserTitle.trim().length === 0) {
+    errors.push({
+      severity: "error",
+      field: "identity.browserTitle",
+      message: "App content is missing browserTitle.",
+      code: "MISSING_REQUIRED_FIELD",
+    });
+  }
+
+  // Validate URLs if provided
+  const urlFields: [string, string | undefined][] = [
+    ["hero.primaryAction.href", content.hero?.primaryAction?.href],
+    ["hero.secondaryAction.href", content.hero?.secondaryAction?.href],
+    ["social.github", content.social?.github],
+    ["social.linkedin", content.social?.linkedin],
+    ["social.resume", content.social?.resume],
+  ];
+
+  for (const [field, url] of urlFields) {
+    if (
+      url &&
+      url.trim().length > 0 &&
+      !url.startsWith("/") &&
+      !url.startsWith("http://") &&
+      !url.startsWith("https://") &&
+      !url.startsWith("mailto:")
+    ) {
+      errors.push({
+        severity: "warning",
+        field,
+        message: `Field "${field}" has potentially malformed URL "${url}".`,
+        code: "INVALID_URL",
+      });
+    }
+  }
+
   return {
     valid: errors.filter((e) => e.severity === "error").length === 0,
     errors,

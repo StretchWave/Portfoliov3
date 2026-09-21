@@ -1,10 +1,18 @@
 import type { AtlasSceneDefinition } from "@/types/scene";
+import type { AppContent } from "@/types/content";
 import type { SaveSceneResult, StorageStatus } from "@/lib/scene-storage-server";
+
+export interface SaveSceneClientOptions {
+  clientRevision?: number;
+  activeAreaId?: string;
+  appContent?: AppContent;
+  force?: boolean;
+}
 
 export interface ScenePersistenceAdapter {
   saveScene(
     scene: AtlasSceneDefinition,
-    options?: { clientRevision?: number; activeAreaId?: string },
+    options?: SaveSceneClientOptions,
   ): Promise<SaveSceneResult>;
   getStatus(): Promise<StorageStatus>;
 }
@@ -12,7 +20,7 @@ export interface ScenePersistenceAdapter {
 export class LocalApiPersistenceAdapter implements ScenePersistenceAdapter {
   async saveScene(
     scene: AtlasSceneDefinition,
-    options?: { clientRevision?: number; activeAreaId?: string },
+    options?: SaveSceneClientOptions,
   ): Promise<SaveSceneResult> {
     const res = await fetch("/api/studio/save", {
       method: "POST",
@@ -21,6 +29,8 @@ export class LocalApiPersistenceAdapter implements ScenePersistenceAdapter {
         scene,
         clientRevision: options?.clientRevision,
         activeAreaId: options?.activeAreaId,
+        appContent: options?.appContent,
+        force: options?.force,
       }),
     });
 

@@ -151,12 +151,40 @@ function ExperienceInner({ onExit }: InteractiveExperienceProps) {
 
     if (event.kind === "travel-to-area") {
       soundManager.playPortalTravel();
-      travelToArea(event.targetArea);
+      travelToArea(event.targetArea as WorldAreaId);
+      return;
+    }
+
+    if (event.kind === "teleport-to-room") {
+      soundManager.playPortalTravel();
+      if (event.targetArea && event.targetArea !== currentArea) {
+        travelToArea(event.targetArea as WorldAreaId);
+        showToast(`Warping to ${event.targetArea} / ${event.roomId}...`);
+      } else {
+        showToast(`Entering room: ${event.roomId}...`);
+        window.dispatchEvent(
+          new CustomEvent("atlas:teleport-player", {
+            detail: { roomId: event.roomId, spawnPointId: event.spawnPointId },
+          }),
+        );
+      }
+      return;
+    }
+
+    if (event.kind === "show-information") {
+      soundManager.playChime();
+      showToast(`ℹ️ ${event.title}${event.description ? `: ${event.description}` : ""}`);
+      return;
+    }
+
+    if (event.kind === "open-link") {
+      soundManager.playClick();
+      window.open(event.url, "_blank", "noopener,noreferrer");
       return;
     }
 
     console.info("Atlas interaction event has no handler in the current experience:", event);
-  }, [travelToArea, recordDiscovery]);
+  }, [travelToArea, recordDiscovery, currentArea, showToast]);
 
   return (
     <main className="interactive-experience">

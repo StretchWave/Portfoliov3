@@ -12,9 +12,11 @@ import { SceneArchitecture } from "@/three/world/renderers/scene-architecture";
 import { SceneDecorations } from "@/three/world/renderers/scene-decorations";
 import { SceneLights } from "@/three/world/renderers/scene-lights";
 import { ScenePortals } from "@/three/world/renderers/scene-portals";
+import { SceneImagePlanes } from "@/three/world/renderers/scene-image-planes";
 import type {
   ArchitectureObject,
   DecorationObject,
+  ImagePlaneObject,
   PointLightObject,
   PortalObject,
   SceneObject,
@@ -26,6 +28,8 @@ import {
   calculatePivotPoint,
   computeModalTransform,
 } from "../systems/modal-transform-engine";
+import { ColliderVisualizer } from "./collider-visualizer";
+import { RoomBoundsVisualizer } from "./room-bounds-visualizer";
 import { triggerObjectInteraction } from "../systems/interaction-engine";
 
 interface EditViewportProps {
@@ -63,47 +67,44 @@ function Cursor3DVisualizer({ position }: { position: Vec3 }) {
  * Appears during G/R/S modal transforms when an axis (X, Y, Z) is locked.
  */
 function TransformGuidelines({
-  pivot,
   axisLock,
+  pivot,
 }: {
-  pivot: Vec3;
   axisLock: null | "x" | "y" | "z" | "xy" | "xz" | "yz";
+  pivot: Vec3;
 }) {
-  if (!axisLock) return null;
-
-  const points: [number, number, number][] = [];
-  let color = "#ffffff";
-
-  if (axisLock === "x") {
-    points.push([-500, 0, 0], [500, 0, 0]);
-    color = "#ef4444"; // Red for X
-  } else if (axisLock === "y") {
-    points.push([0, -500, 0], [0, 500, 0]);
-    color = "#22c55e"; // Green for Y
-  } else if (axisLock === "z") {
-    points.push([0, 0, -500], [0, 0, 500]);
-    color = "#3b82f6"; // Blue for Z
-  } else if (axisLock === "xy") {
-    color = "#38bdf8";
-  } else if (axisLock === "xz") {
-    color = "#a855f7";
-  } else if (axisLock === "yz") {
-    color = "#f97316";
-  }
-
-  if (points.length === 0) return null;
-
   const lineObj = useMemo(() => {
+    if (!axisLock) return null;
+    const pts: [number, number, number][] = [];
+    let clr = "#ffffff";
+    if (axisLock === "x") {
+      pts.push([-500, 0, 0], [500, 0, 0]);
+      clr = "#ef4444";
+    } else if (axisLock === "y") {
+      pts.push([0, -500, 0], [0, 500, 0]);
+      clr = "#22c55e";
+    } else if (axisLock === "z") {
+      pts.push([0, 0, -500], [0, 0, 500]);
+      clr = "#3b82f6";
+    } else if (axisLock === "xy") {
+      clr = "#38bdf8";
+    } else if (axisLock === "xz") {
+      clr = "#a855f7";
+    } else if (axisLock === "yz") {
+      clr = "#f97316";
+    }
+    if (pts.length === 0) return null;
     const geo = new THREE.BufferGeometry().setFromPoints(
-      points.map((p) => new THREE.Vector3(...p)),
+      pts.map((p) => new THREE.Vector3(...p)),
     );
-    const mat = new THREE.LineBasicMaterial({ color, linewidth: 2, transparent: true, opacity: 0.8 });
+    const mat = new THREE.LineBasicMaterial({ color: clr, linewidth: 2, transparent: true, opacity: 0.8 });
     return new THREE.Line(geo, mat);
-  }, [points, color]);
+  }, [axisLock]);
+
+  if (!lineObj) return null;
 
   return (
     <group position={pivot}>
-      {/* Guideline line */}
       <primitive object={lineObj} />
     </group>
   );
@@ -245,6 +246,7 @@ function ModalTransformCanvasController({
     confirmModalTransform,
     cancelModalTransform,
     onHudUpdate,
+    state.selectedObjectId,
   ]);
 
   if (!isModal || !state.modalTransform) return null;
@@ -265,7 +267,7 @@ function GizmoController({
 }: {
   controlsRef: React.RefObject<any>;
 }) {
-  const { state, selectedObject, updateObject, dispatch } = useEditor();
+  const { state, selectedObject, updateObject, dispatch, applyModalTransformPreview } = useEditor();
   const pivotRef = useRef<THREE.Group>(null);
   const [isDragging, setIsDragging] = useState(false);
   const preDragTransformRef = useRef<{ position: Vec3; rotation?: Vec3; scale?: Vec3 } | null>(null);
@@ -301,19 +303,13 @@ function GizmoController({
       />
 
       {selectedObject && !isModalActive && (
-        <group ref={pivotRef}>
-          <axesHelper args={[1.4]} />
-        </group>
-      )}
-
-      {selectedObject &&
-        state.transformMode !== "select" &&
-        !isModalActive &&
-        state.editorMode === "edit" && (
+        state.transformMode !== "select" && state.editorMode === "edit" ? (
           <TransformControls
-            object={pivotRef.current ?? undefined}
             mode={state.transformMode}
             space={state.transformSpace}
+            translationSnap={state.snapEnabled && state.snapMode === "increment" ? state.snapStep : null}
+            rotationSnap={state.snapEnabled ? ((state.snapRotationStep || 15) * Math.PI) / 180 : null}
+            scaleSnap={state.snapEnabled ? (state.snapScaleStep || 0.25) : null}
             onMouseDown={() => {
               setIsDragging(true);
               if (selectedObject) {
@@ -328,6 +324,27 @@ function GizmoController({
                 };
               }
               dispatch({ type: "SET_DRAGGING_GIZMO", isDragging: true });
+            }}
+            onObjectChange={() => {
+              if (pivotRef.current && selectedObject) {
+                const p = pivotRef.current.position;
+                const r = pivotRef.current.rotation;
+                const s = pivotRef.current.scale;
+                applyModalTransformPreview(
+                  {
+                    [selectedObject.id]: {
+                      position: [p.x, p.y, p.z],
+                      rotation: [r.x, r.y, r.z],
+                      scale: [s.x, s.y, s.z],
+                    },
+                  },
+                  {
+                    translation: [0, 0, 0],
+                    rotation: [0, 0, 0],
+                    scale: [1, 1, 1],
+                  },
+                );
+              }
             }}
             onMouseUp={() => {
               setIsDragging(false);
@@ -350,8 +367,17 @@ function GizmoController({
               }
               dispatch({ type: "RECORD_GIZMO_DRAG_END", historyLabel: "Transform Object" });
             }}
-          />
-        )}
+          >
+            <group ref={pivotRef}>
+              <axesHelper args={[1.4]} />
+            </group>
+          </TransformControls>
+        ) : (
+          <group ref={pivotRef}>
+            <axesHelper args={[1.4]} />
+          </group>
+        )
+      )}
     </>
   );
 }
@@ -429,20 +455,28 @@ export function EditViewport({
   const controlsRef = useRef<any>(null);
   const [modalHudText, setModalHudText] = useState("");
 
-  const { architecture, lights, portals, decorations } = useMemo(() => {
+  const { architecture, lights, portals, decorations, imagePlanes } = useMemo(() => {
     const arch: ArchitectureObject[] = [];
     const lgt: PointLightObject[] = [];
     const port: PortalObject[] = [];
     const deco: DecorationObject[] = [];
+    const imgPlanes: ImagePlaneObject[] = [];
 
     for (const obj of currentAreaScene.objects) {
       if (obj.type === "architecture") arch.push(obj as ArchitectureObject);
       else if (obj.type === "point-light") lgt.push(obj as PointLightObject);
       else if (obj.type === "portal") port.push(obj as PortalObject);
       else if (obj.type === "decoration") deco.push(obj as DecorationObject);
+      else if (obj.type === "image-plane") imgPlanes.push(obj as ImagePlaneObject);
     }
 
-    return { architecture: arch, lights: lgt, portals: port, decorations: deco };
+    return {
+      architecture: arch,
+      lights: lgt,
+      portals: port,
+      decorations: deco,
+      imagePlanes: imgPlanes,
+    };
   }, [currentAreaScene.objects]);
 
   // Camera Alignment & Focus Listener
@@ -637,6 +671,15 @@ export function EditViewport({
               onOpenContextMenu?.(x, y);
             }}
           />
+          <SceneImagePlanes
+            imagePlanes={imagePlanes}
+            selectedIds={selectedIds}
+            onSelect={(id) => handleSelect(id, false)}
+            onContextMenu={(id, x, y) => {
+              selectObject(id);
+              onOpenContextMenu?.(x, y);
+            }}
+          />
 
           {/* Interactive Light Gizmo Helpers */}
           <LightHelpers
@@ -656,6 +699,20 @@ export function EditViewport({
           <MultiSelectionVisualizer
             selectedObjects={selectedObjects}
             activeObjectId={state.selectedObjectId}
+          />
+
+          {/* Collider and Trigger Debug Overlays */}
+          <ColliderVisualizer
+            objects={currentAreaScene.objects}
+            selectedObjectId={state.selectedObjectId}
+            showColliders={state.overlays.colliders}
+            showTriggers={state.overlays.triggers}
+          />
+
+          {/* Room Bounds Overlay */}
+          <RoomBoundsVisualizer
+            bounds={currentAreaScene.bounds}
+            visible={state.overlays.roomBounds}
           />
 
           {/* Background Plane for direct deselect on empty ground click */}

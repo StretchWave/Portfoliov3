@@ -123,77 +123,157 @@ export function computeModalTransform(params: ComputeTransformParams): Transform
       else if (axisLock === "yz") tDelta = [0, val, val];
       else tDelta = [val, 0, 0];
     } else {
-      // Project mouse movement to 3D world space
-      // Create a plane at pivot facing the camera
-      const planeNormal = new THREE.Vector3();
-      camera.getWorldDirection(planeNormal).negate();
+      const pivot3D = new THREE.Vector3(...pivotPoint);
 
-      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
-        planeNormal,
-        new THREE.Vector3(...pivotPoint),
-      );
-
-      const raycaster = new THREE.Raycaster();
-      const ndcStart = new THREE.Vector2(
-        (startPointer.x / viewportWidth) * 2 - 1,
-        -(startPointer.y / viewportHeight) * 2 + 1,
-      );
-      const ndcCurrent = new THREE.Vector2(
-        (currentPointer.x / viewportWidth) * 2 - 1,
-        -(currentPointer.y / viewportHeight) * 2 + 1,
-      );
-
-      raycaster.setFromCamera(ndcStart, camera);
-      const startIntersect = new THREE.Vector3();
-      raycaster.ray.intersectPlane(plane, startIntersect);
-
-      raycaster.setFromCamera(ndcCurrent, camera);
-      const currentIntersect = new THREE.Vector3();
-      raycaster.ray.intersectPlane(plane, currentIntersect);
-
-      const rawDelta = new THREE.Vector3()
-        .subVectors(currentIntersect, startIntersect)
-        .multiplyScalar(precisionFactor);
-
-      // Handle Local space if orientation is local
-      if (orientation === "local" && activeObjectRotation) {
-        const euler = new THREE.Euler(
-          activeObjectRotation[0],
-          activeObjectRotation[1],
-          activeObjectRotation[2],
-          "YXZ",
+      if (axisLock === "x" || axisLock === "y" || axisLock === "z") {
+        // ── 1D Axis Constraint ──
+        // Project 3D axis vector onto 2D screen line to determine movement
+        const axisDir = new THREE.Vector3(
+          axisLock === "x" ? 1 : 0,
+          axisLock === "y" ? 1 : 0,
+          axisLock === "z" ? 1 : 0,
         );
-        const rotMat = new THREE.Matrix4().makeRotationFromEuler(euler);
-        const invRotMat = rotMat.clone().invert();
 
-        // Convert world delta to local
-        rawDelta.applyMatrix4(invRotMat);
+        if (orientation === "local" && activeObjectRotation) {
+          const euler = new THREE.Euler(
+            activeObjectRotation[0],
+            activeObjectRotation[1],
+            activeObjectRotation[2],
+            "YXZ",
+          );
+          axisDir.applyEuler(euler).normalize();
+        }
 
-        // Apply axis constraint in local space
-        if (axisLock === "x") { rawDelta.y = 0; rawDelta.z = 0; }
-        else if (axisLock === "y") { rawDelta.x = 0; rawDelta.z = 0; }
-        else if (axisLock === "z") { rawDelta.x = 0; rawDelta.y = 0; }
-        else if (axisLock === "xy") { rawDelta.z = 0; }
-        else if (axisLock === "xz") { rawDelta.y = 0; }
-        else if (axisLock === "yz") { rawDelta.x = 0; }
+        const tip3D = pivot3D.clone().add(axisDir);
+
+        const pivotScreen = pivot3D.clone().project(camera);
+        const tipScreen = tip3D.clone().project(camera);
+
+        // Screen vector in pixel coordinates
+        const axisScreen = new THREE.Vector2(
+          (tipScreen.x - pivotScreen.x) * (viewportWidth / 2),
+          -(tipScreen.y - pivotScreen.y) * (viewportHeight / 2),
+        );
+
+        const mouseDelta = new THREE.Vector2(
+          (currentPointer.x - startPointer.x) * precisionFactor,
+          (currentPointer.y - startPointer.y) * precisionFactor,
+        );
+
+        let worldDistance = 0;
+        const axisScreenLen = axisScreen.length();
+
+        if (axisScreenLen > 2) {
+          // Normal case: Project mouse displacement onto the 2D screen axis vector
+          const normAxis = axisScreen.clone().normalize();
+          const dotPixels = mouseDelta.dot(normAxis);
+
+          // Calculate pixels-per-world-unit at the pivot depth
+          const distToPivot = camera.position.distanceTo(pivot3D);
+          let pixelsPerUnit = 50;
+          if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
+            const fovRad = (((camera as THREE.PerspectiveCamera).fov || 50) * Math.PI) / 180;
+            pixelsPerUnit = viewportHeight / (2 * Math.tan(fovRad / 2) * Math.max(distToPivot, 0.1));
+          } else if ((camera as THREE.OrthographicCamera).isOrthographicCamera) {
+            const orthoCam = camera as THREE.OrthographicCamera;
+            pixelsPerUnit = viewportHeight / Math.max(orthoCam.top - orthoCam.bottom, 0.1);
+          }
+
+          worldDistance = dotPixels / Math.max(pixelsPerUnit, 1);
+        } else {
+          // Degenerate case: Axis points directly towards/away from camera
+          worldDistance = -mouseDelta.y * 0.05;
+        }
 
         if (snapping) {
           const s = snapStep || 0.5;
-          rawDelta.x = Math.round(rawDelta.x / s) * s;
-          rawDelta.y = Math.round(rawDelta.y / s) * s;
-          rawDelta.z = Math.round(rawDelta.z / s) * s;
+          worldDistance = Math.round(worldDistance / s) * s;
         }
 
-        // Convert back to world delta
-        rawDelta.applyMatrix4(rotMat);
+        const worldDisplacement = axisDir.clone().multiplyScalar(worldDistance);
+        tDelta = [worldDisplacement.x, worldDisplacement.y, worldDisplacement.z];
+      } else if (axisLock === "xy" || axisLock === "xz" || axisLock === "yz") {
+        // ── 2D Plane Constraint ──
+        // Intersect true constraint plane (e.g. horizontal floor for XZ)
+        const planeNormal = new THREE.Vector3(
+          axisLock === "yz" ? 1 : 0,
+          axisLock === "xz" ? 1 : 0,
+          axisLock === "xy" ? 1 : 0,
+        );
+
+        if (orientation === "local" && activeObjectRotation) {
+          const euler = new THREE.Euler(
+            activeObjectRotation[0],
+            activeObjectRotation[1],
+            activeObjectRotation[2],
+            "YXZ",
+          );
+          planeNormal.applyEuler(euler).normalize();
+        }
+
+        const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(planeNormal, pivot3D);
+
+        const raycaster = new THREE.Raycaster();
+        const ndcStart = new THREE.Vector2(
+          (startPointer.x / viewportWidth) * 2 - 1,
+          -(startPointer.y / viewportHeight) * 2 + 1,
+        );
+        const ndcCurrent = new THREE.Vector2(
+          (currentPointer.x / viewportWidth) * 2 - 1,
+          -(currentPointer.y / viewportHeight) * 2 + 1,
+        );
+
+        raycaster.setFromCamera(ndcStart, camera);
+        const startIntersect = new THREE.Vector3();
+        const hitStart = raycaster.ray.intersectPlane(plane, startIntersect);
+
+        raycaster.setFromCamera(ndcCurrent, camera);
+        const currentIntersect = new THREE.Vector3();
+        const hitCurrent = raycaster.ray.intersectPlane(plane, currentIntersect);
+
+        if (hitStart && hitCurrent) {
+          const rawDelta = new THREE.Vector3()
+            .subVectors(currentIntersect, startIntersect)
+            .multiplyScalar(precisionFactor);
+
+          if (snapping) {
+            const s = snapStep || 0.5;
+            rawDelta.x = Math.round(rawDelta.x / s) * s;
+            rawDelta.y = Math.round(rawDelta.y / s) * s;
+            rawDelta.z = Math.round(rawDelta.z / s) * s;
+          }
+
+          tDelta = [rawDelta.x, rawDelta.y, rawDelta.z];
+        }
       } else {
-        // World space constraints
-        if (axisLock === "x") { rawDelta.y = 0; rawDelta.z = 0; }
-        else if (axisLock === "y") { rawDelta.x = 0; rawDelta.z = 0; }
-        else if (axisLock === "z") { rawDelta.x = 0; rawDelta.y = 0; }
-        else if (axisLock === "xy") { rawDelta.z = 0; }
-        else if (axisLock === "xz") { rawDelta.y = 0; }
-        else if (axisLock === "yz") { rawDelta.x = 0; }
+        // ── Free Translation ──
+        // Project onto a plane at pivot facing the camera
+        const planeNormal = new THREE.Vector3();
+        camera.getWorldDirection(planeNormal).negate();
+
+        const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(planeNormal, pivot3D);
+
+        const raycaster = new THREE.Raycaster();
+        const ndcStart = new THREE.Vector2(
+          (startPointer.x / viewportWidth) * 2 - 1,
+          -(startPointer.y / viewportHeight) * 2 + 1,
+        );
+        const ndcCurrent = new THREE.Vector2(
+          (currentPointer.x / viewportWidth) * 2 - 1,
+          -(currentPointer.y / viewportHeight) * 2 + 1,
+        );
+
+        raycaster.setFromCamera(ndcStart, camera);
+        const startIntersect = new THREE.Vector3();
+        raycaster.ray.intersectPlane(plane, startIntersect);
+
+        raycaster.setFromCamera(ndcCurrent, camera);
+        const currentIntersect = new THREE.Vector3();
+        raycaster.ray.intersectPlane(plane, currentIntersect);
+
+        const rawDelta = new THREE.Vector3()
+          .subVectors(currentIntersect, startIntersect)
+          .multiplyScalar(precisionFactor);
 
         if (snapping) {
           const s = snapStep || 0.5;
@@ -201,9 +281,9 @@ export function computeModalTransform(params: ComputeTransformParams): Transform
           rawDelta.y = Math.round(rawDelta.y / s) * s;
           rawDelta.z = Math.round(rawDelta.z / s) * s;
         }
-      }
 
-      tDelta = [rawDelta.x, rawDelta.y, rawDelta.z];
+        tDelta = [rawDelta.x, rawDelta.y, rawDelta.z];
+      }
     }
 
     // Apply translation to each object

@@ -1,17 +1,21 @@
+import { defaultAppContent } from "@/data/app-content";
+
 /**
  * Single source of truth for Project Atlas site identity, canonical URLs,
  * and deployment metadata.
+ *
+ * Derived canonically from defaultAppContent, editable via Atlas Studio (/studio).
  */
 export const SITE_CONFIG = {
-  name: "Project Atlas",
-  author: "Mishal",
-  title: "Project Atlas — Interactive Engineering Portfolio",
-  description:
-    "Interactive engineering portfolio and systems index showcasing architecture, systems engineering, and interactive 3D computing.",
+  name: defaultAppContent.identity.siteName,
+  author: defaultAppContent.identity.author,
+  title: defaultAppContent.identity.browserTitle,
+  description: defaultAppContent.identity.description,
   url: "https://stretchwave.github.io/Atlas",
-  github: "https://github.com/StretchWave",
+  github: defaultAppContent.social.github || "https://github.com/StretchWave",
   repoUrl: "https://github.com/StretchWave/Portfoliov3",
 } as const;
+
 
 export function getCanonicalSiteUrl(path = ""): string {
   if (!path) return SITE_CONFIG.url;
